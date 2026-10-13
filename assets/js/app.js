@@ -1,0 +1,671 @@
+/* ============================================================
+   MEDC ServerCore Lab Training — application shell
+   Hash router, page renderers, shared store, UI helpers.
+   ============================================================ */
+
+/* ---------------- persistent store ---------------- */
+const STORE_KEY = "servercore-lab-v1";
+
+function defaultState() {
+  return {
+    v: 1,
+    roles: [],
+    domain: "WORKGROUP",
+    dhcp: { authorized: null },
+    scopes: [],
+    exclusions: [],
+    reservations: [],
+    options: {},
+    exercises: {},
+  };
+}
+
+const store = {
+  data: defaultState(),
+  load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) this.data = Object.assign(defaultState(), JSON.parse(raw));
+    } catch (e) { this.data = defaultState(); }
+  },
+  save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); } catch (e) {}
+  },
+  reset() {
+    this.data = defaultState();
+    this.save();
+    try { localStorage.removeItem("servercore-term-history-v1"); } catch (e) {}
+  },
+};
+store.load();
+
+/* ---------------- helpers ---------------- */
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+function copyText(text) {
+  const done = () => toast("Copied to clipboard");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+  done();
+}
+
+function kvTable(rows) {
+  return `<div class="card" style="padding:6px 20px">` +
+    rows.map(r => `<div class="kv"><span class="k">${esc(r[0])}</span><span class="v">${esc(r[1])}</span></div>`).join("") +
+    `</div>`;
+}
+
+function dataTable(headers, rows) {
+  return `<div class="card" style="padding:6px 8px;overflow-x:auto"><table><thead><tr>` +
+    headers.map(h => `<th>${esc(h)}</th>`).join("") +
+    `</tr></thead><tbody>` +
+    rows.map(r => `<tr>` + r.map(c => `<td>${esc(c)}</td>`).join("") + `</tr>`).join("") +
+    `</tbody></table></div>`;
+}
+
+/* Quick-command card: monospace command + Copy + Test in Simulator */
+function cmdCard(cmd, desc) {
+  return `<div class="card cmd-card">
+    <div class="cmd-line"><code>${esc(cmd)}</code></div>
+    ${desc ? `<div style="font-size:13px;color:var(--muted)">${esc(desc)}</div>` : ""}
+    <div class="btn-row">
+      <button class="btn" data-copy="${esc(cmd)}">Copy</button>
+      <button class="btn primary" data-test="${esc(cmd)}">Test in Simulator</button>
+    </div>
+  </div>`;
+}
+
+function pageHead(title, desc) {
+  return `<h1>${esc(title)}</h1><p class="page-desc">${esc(desc)}</p>`;
+}
+
+/* ---------------- navigation ---------------- */
+const NAV = [
+  ["#/", "Dashboard", "&#8962;"],
+  ["#/terminal", "Terminal", "&#9000;"],
+  ["#/active-directory", "Active Directory", "&#128101;"],
+  ["#/roles", "Roles & Features", "&#128193;"],
+  ["#/dns", "DNS Server", "&#127760;"],
+  ["#/dhcp", "DHCP Server", "&#128268;"],
+  ["#/group-policy", "Group Policy", "&#128274;"],
+  ["#/networking", "Networking", "&#128759;"],
+  ["#/storage", "Storage", "&#128190;"],
+  ["#/security", "Security", "&#128737;"],
+  ["#/learning-lab", "Learning Lab", "&#127979;"],
+  ["#/command-reference", "Command Reference", "&#128218;"],
+  ["#/settings", "Settings", "&#9881;"],
+  ["#/about", "About", "&#9432;"],
+];
+
+function renderNav() {
+  const hash = location.hash || "#/";
+  document.getElementById("nav").innerHTML = NAV.map(([href, label, ico]) =>
+    `<a href="${href}" class="${href === hash ? "active" : ""}"><span class="ico">${ico}</span>${esc(label)}</a>`
+  ).join("");
+}
+
+/* ---------------- router ---------------- */
+let currentTerm = null;
+
+const ROUTES = {};
+
+function render() {
+  const hash = (location.hash || "#/").split("?")[0];
+  renderNav();
+  const app = document.getElementById("app");
+  const fn = ROUTES[hash] || ROUTES["#/"];
+  currentTerm = null;
+  app.innerHTML = fn();
+  if (fn.init) fn.init();
+  document.getElementById("sidebar").classList.remove("open");
+  window.scrollTo(0, 0);
+}
+
+function route(path, fn, init) {
+  fn.init = init || null;
+  ROUTES[path] = fn;
+}
+
+/* "Test in Simulator": run a command in the terminal page */
+function testInSimulator(cmd) {
+  const onTerminal = (location.hash || "#/") === "#/terminal";
+  if (onTerminal && currentTerm) { currentTerm.execute(cmd); return; }
+  window.__pendingCommand = cmd;
+  if (onTerminal) render();
+  else location.hash = "#/terminal";
+}
+
+/* ---------------- global click delegation ---------------- */
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  const closest = (sel) => t.closest(sel);
+
+  const copyBtn = closest("[data-copy]");
+  if (copyBtn) { copyText(copyBtn.getAttribute("data-copy")); return; }
+
+  const testBtn = closest("[data-test]");
+  if (testBtn) { testInSimulator(testBtn.getAttribute("data-test")); return; }
+
+  const gotoBtn = closest("[data-goto]");
+  if (gotoBtn) { location.hash = gotoBtn.getAttribute("data-goto"); return; }
+
+  const exHead = closest(".ex-head");
+  if (exHead) { exHead.parentElement.classList.toggle("open"); return; }
+
+  const refHead = closest(".ref-head");
+  if (refHead) { refHead.parentElement.classList.toggle("open"); return; }
+
+  const exCheck = closest("[data-ex]");
+  if (exCheck && exCheck.tagName === "INPUT") {
+    const id = exCheck.getAttribute("data-ex");
+    if (exCheck.checked) store.data.exercises[id] = true;
+    else delete store.data.exercises[id];
+    store.save();
+    updateProgress();
+    const num = exCheck.closest(".exercise").querySelector(".num");
+    if (num) { num.classList.toggle("done", exCheck.checked); num.textContent = exCheck.checked ? "✓" : id; }
+    return;
+  }
+
+  if (closest("#menu-toggle")) { document.getElementById("sidebar").classList.toggle("open"); return; }
+
+  if (closest("#dora-run")) { runDora(); return; }
+  if (closest("#reset-open")) { document.getElementById("reset-modal").classList.add("show"); return; }
+  if (closest("#reset-cancel")) { document.getElementById("reset-modal").classList.remove("show"); return; }
+  if (closest("#reset-confirm")) {
+    store.reset();
+    document.getElementById("reset-modal").classList.remove("show");
+    toast("Lab reset — all simulated state erased");
+    render();
+    return;
+  }
+  if (closest("#export-json")) { exportState(); return; }
+  if (closest("#import-file-btn")) { document.getElementById("import-file").click(); return; }
+  if (closest("#import-text-btn")) { importFromText(); return; }
+});
+
+/* ============================================================
+   PAGES
+   ============================================================ */
+
+/* ---------------- Dashboard ---------------- */
+route("#/", () => {
+  const roleBadges = store.data.roles.length
+    ? store.data.roles.map(r => `<span class="badge blue">${esc(r)}</span>`).join(" ")
+    : `<span class="badge">No roles installed yet</span>`;
+  const doneCount = Object.keys(store.data.exercises).length;
+  return `
+  ${pageHead("MEDC ServerCore Lab Training — Dashboard", "Your simulated Windows Server 2019 lab. Install roles, run commands, and track your progress.")}
+  <div class="card">
+    <h2>&#128994; Getting started</h2>
+    <div style="font-size:14px;color:var(--muted);line-height:2">
+      1. Open the <a href="#/terminal" style="color:var(--accent)">Terminal</a> and run <code>Get-Command</code><br>
+      2. Install a role, e.g. <code>Install-WindowsFeature DHCP</code><br>
+      3. Follow the <a href="#/learning-lab" style="color:var(--accent)">Learning Lab</a> exercises step by step<br>
+      4. Look up any command in the <a href="#/command-reference" style="color:var(--accent)">Command Reference</a>
+    </div>
+  </div>
+  <div class="grid grid-3">
+    <div class="card"><h2>Server</h2>${kvTable(SAMPLE.server.slice(0, 4))}</div>
+    <div class="card"><h2>Network</h2>${kvTable(SAMPLE.server.slice(4))}</div>
+    <div class="card"><h2>Lab progress</h2>
+      <div style="font-size:34px;font-weight:800;color:var(--accent)">${doneCount}<span style="font-size:16px;color:var(--muted)">/15</span></div>
+      <div style="font-size:13px;color:var(--muted);margin:6px 0 12px">exercises completed</div>
+      <button class="btn primary" data-goto="#/learning-lab">Continue learning</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Installed roles</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${roleBadges}</div>
+    <div class="btn-row"><button class="btn" data-goto="#/roles">Manage roles</button></div>
+  </div>`;
+});
+
+/* ---------------- Terminal page ---------------- */
+route("#/terminal",
+  () => `${pageHead("PowerShell Terminal", "A simulated PowerShell session. State-changing commands update the lab in real time.")}<div id="term-mount"></div>`,
+  () => { currentTerm = new SimTerminal(document.getElementById("term-mount"), store); }
+);
+
+/* ---------------- Roles & Features ---------------- */
+route("#/roles", () => {
+  const rows = SAMPLE.roles.map(([disp, name]) => {
+    const installed = store.data.roles.includes(name);
+    return `<tr><td>${esc(disp)}</td><td>${esc(name)}</td>
+      <td>${installed ? '<span class="badge green">Installed</span>' : '<span class="badge">Available</span>'}</td></tr>`;
+  }).join("");
+  return `
+  ${pageHead("Roles & Features", "Install or remove server roles. The dashboard reflects every change.")}
+  <div class="card" style="padding:6px 8px;overflow-x:auto"><table>
+    <thead><tr><th>Display name</th><th>Name</th><th>Status</th></tr></thead><tbody>${rows}</tbody>
+  </table></div>
+  <h2>Quick Commands</h2>
+  ${cmdCard("Install-WindowsFeature DHCP -IncludeManagementTools", "Install the DHCP server role with management tools.")}
+  ${cmdCard("Install-WindowsFeature DNS -IncludeManagementTools", "Install the DNS server role.")}
+  ${cmdCard("Install-WindowsFeature AD-Domain-Services -IncludeManagementTools", "Install Active Directory Domain Services.")}
+  ${cmdCard("Get-WindowsFeature", "List every role and feature with its install state.")}`;
+});
+
+/* ---------------- DHCP Server ---------------- */
+route("#/dhcp", () => {
+  const auth = store.data.dhcp.authorized;
+  const authCard = auth
+    ? `<span class="badge green">Authorized in AD</span>
+       <div class="kv" style="margin-top:10px"><span class="k">DNS name</span><span class="v">${esc(auth.dnsName)}</span></div>
+       <div class="kv"><span class="k">IP address</span><span class="v">${esc(auth.ip)}</span></div>`
+    : `<span class="badge red">Not authorized</span>
+       <div style="font-size:13px;color:var(--muted);margin-top:10px">Run <code>Add-DhcpServerInDC</code> in the terminal to authorize this server.</div>`;
+
+  const scopes = store.data.scopes;
+  const scopeRows = scopes.map(s =>
+    `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.start)}</td><td>${esc(s.end)}</td><td>${esc(s.mask)}</td></tr>`
+  ).join("");
+  const scopeSection = scopes.length
+    ? `<div class="card" style="padding:6px 8px;overflow-x:auto"><table>
+        <thead><tr><th>ScopeId</th><th>Name</th><th>Start</th><th>End</th><th>Mask</th></tr></thead>
+        <tbody>${scopeRows}</tbody></table></div>`
+    : `<div class="card"><span class="badge">No scopes yet</span>
+        <div style="font-size:13px;color:var(--muted);margin-top:10px">Install the DHCP role, authorize it, then add a scope.</div></div>`;
+
+  const doraSteps = [
+    ["D", "Discover", "The client broadcasts a DHCPDISCOVER looking for any available server."],
+    ["O", "Offer", "Servers answer with a DHCPOFFER proposing an IP address and options."],
+    ["R", "Request", "The client broadcasts a DHCPREQUEST accepting one of the offers."],
+    ["A", "Acknowledge", "The chosen server replies DHCPACK — the lease is now active."],
+  ].map(([L, n, d]) => `
+    <div class="dora-step" data-dora="${L}">
+      <div class="letter">${L}</div><div class="sname">${n}</div><div class="sdesc">${d}</div>
+    </div>`).join("");
+
+  return `
+  ${pageHead("DHCP Server", "Install, authorize, and configure IPv4 scopes on the simulated DHCP server.")}
+  <div class="grid grid-2">
+    <div class="card"><h2>Authorization</h2>${authCard}</div>
+    <div class="card"><h2>Scopes (${scopes.length})</h2>${scopeSection}</div>
+  </div>
+  <div class="card">
+    <h2>&#9889; DORA — how DHCP leasing works</h2>
+    <div style="font-size:13px;color:var(--muted)">Watch the four-step handshake that happens every time a client gets an address. This visualizer is unique to this lab.</div>
+    <div class="dora-steps">${doraSteps}</div>
+    <div class="dora-log" id="dora-log">Press "Run simulation" to watch a DHCP handshake…</div>
+    <div class="btn-row"><button class="btn primary" id="dora-run">Run simulation</button></div>
+  </div>
+  <h2>Quick Commands</h2>
+  ${cmdCard("Install-WindowsFeature DHCP -IncludeManagementTools", "Install the DHCP role with management tools.")}
+  ${cmdCard("Get-DhcpServerv4Scope", "List all configured IPv4 scopes.")}
+  ${cmdCard("Add-DhcpServerInDC -DnsName DC01.lab.local -IPAddress 192.168.10.10", "Authorize this DHCP server in Active Directory.")}
+  ${cmdCard("Add-DhcpServerv4Scope -Name 'Lab Clients' -StartRange 192.168.10.100 -EndRange 192.168.10.200 -SubnetMask 255.255.255.0", "Create a scope for lab clients.")}
+  ${cmdCard("Set-DhcpServerv4OptionValue -ScopeId 10 -OptionId 3 -Value 192.168.10.1", "Set the router (default gateway) option on the scope.")}
+  ${cmdCard("Get-DhcpServerv4Lease -ScopeId 10", "Show active leases (generated per session).")}`;
+});
+
+/* DORA animation */
+function runDora() {
+  const log = document.getElementById("dora-log");
+  const btn = document.getElementById("dora-run");
+  if (!log || btn.disabled) return;
+  btn.disabled = true;
+  document.querySelectorAll(".dora-step").forEach(s => s.classList.remove("active", "done"));
+  log.textContent = "";
+  const script = [
+    ["D", "CLIENT  →  *broadcast*   DHCPDISCOVER  (\"Is there a DHCP server out there?\")"],
+    ["D", ""],
+    ["O", "SERVER  →  CLIENT        DHCPOFFER     192.168.10.100  + mask 255.255.255.0, router 192.168.10.1"],
+    ["O", ""],
+    ["R", "CLIENT  →  *broadcast*   DHCPREQUEST   (\"I'll take 192.168.10.100, thanks!\")"],
+    ["R", ""],
+    ["A", "SERVER  →  CLIENT        DHCPACK       lease confirmed — address is now Active ✔"],
+  ];
+  let i = 0;
+  const step = () => {
+    if (i >= script.length) {
+      document.querySelectorAll(".dora-step").forEach(s => s.classList.add("done"));
+      log.textContent += "\n— handshake complete —";
+      btn.disabled = false;
+      return;
+    }
+    const [letter, line] = script[i];
+    document.querySelectorAll(".dora-step").forEach(s => {
+      s.classList.toggle("active", s.getAttribute("data-dora") === letter);
+      if (s.getAttribute("data-dora") < letter) s.classList.add("done");
+    });
+    if (line) log.textContent += line + "\n";
+    i++;
+    setTimeout(step, 900);
+  };
+  step();
+}
+
+/* ---------------- DNS Server ---------------- */
+route("#/dns", () => `
+  ${pageHead("DNS Server", "Host forward lookup zones and records on the simulated DNS server.")}
+  <div class="card"><h2>Zones</h2>
+    <div class="btn-row" style="margin:0 0 10px"><span class="badge blue">lab.local — Primary</span><span class="badge">0.in-addr.arpa — Primary</span></div>
+  </div>
+  <h2>Records in lab.local</h2>
+  ${dataTable(["Name", "Type", "Data"], SAMPLE.dnsRecords)}
+  <h2>Quick Commands</h2>
+  ${cmdCard("Install-WindowsFeature DNS -IncludeManagementTools", "Install the DNS server role.")}
+  ${cmdCard("Add-DnsServerPrimaryZone -Name 'lab.local' -ZoneFile 'lab.local.dns'", "Create the forward lookup zone.")}
+  ${cmdCard("Add-DnsServerResourceRecordA -Name 'DC01' -ZoneName 'lab.local' -IPv4Address '192.168.10.10'", "Publish the domain controller's A record.")}
+  ${cmdCard("Get-DnsServerZone", "List hosted DNS zones.")}
+  ${cmdCard("Resolve-DnsName -Name DC01.lab.local", "Test name resolution against the simulated DNS.")}`);
+
+/* ---------------- Active Directory ---------------- */
+route("#/active-directory", () => `
+  ${pageHead("Active Directory", "Manage the simulated lab.local domain: OUs, users, groups and computers.")}
+  <div class="grid grid-2">
+    <div class="card"><h2>Domain</h2>${kvTable([["Forest", "lab.local"], ["Domain controller", "DC01.lab.local"], ["Site", "Default-First-Site-Name"], ["Functional level", "Windows Server 2016"]])}</div>
+    <div class="card"><h2>Users</h2>${kvTable([["student01", "Enabled — member of LabAdmins"], ["Administrator", "Enabled — Domain Admins"]])}</div>
+  </div>
+  <h2>Organizational Units</h2>
+  ${dataTable(["Name", "Distinguished path"], SAMPLE.ous)}
+  <h2>Quick Commands</h2>
+  ${cmdCard("Install-ADDSForest -DomainName 'lab.local' -InstallDns", "Create the lab.local forest on this server.")}
+  ${cmdCard("New-ADOrganizationalUnit -Name 'IT' -Path 'DC=lab,DC=local'", "Create an organizational unit.")}
+  ${cmdCard("New-ADUser -Name 'student01' -Enabled $true", "Create the standard lab user.")}
+  ${cmdCard("New-ADGroup -Name 'LabAdmins' -GroupScope Global", "Create a global security group.")}
+  ${cmdCard("Add-ADGroupMember -Identity 'LabAdmins' -Members 'student01'", "Add the user to the group.")}
+  ${cmdCard("dcdiag", "Run domain controller diagnostics.")}`);
+
+/* ---------------- Group Policy ---------------- */
+route("#/group-policy", () => `
+  ${pageHead("Group Policy", "Define and link Group Policy Objects in the simulated domain.")}
+  <div class="card"><h2>Password policy (Default Domain Policy)</h2>${kvTable(SAMPLE.passwordPolicy)}</div>
+  <h2>Linked GPOs</h2>
+  ${dataTable(["Name", "Link target", "Status"], [["Default Domain Policy", "DC=lab,DC=local", "Enabled"], ["Lab Password Policy", "DC=lab,DC=local", "Not created yet"]])}
+  <h2>Quick Commands</h2>
+  ${cmdCard("New-GPO -Name 'Lab Password Policy'", "Create a new Group Policy Object.")}
+  ${cmdCard("New-GPLink -Name 'Lab Password Policy' -Target 'DC=lab,DC=local'", "Link the GPO at the domain level.")}
+  ${cmdCard("Get-GPO -All", "List all Group Policy Objects.")}
+  ${cmdCard("gpupdate /force", "Force a policy refresh.")}`);
+
+/* ---------------- Networking ---------------- */
+route("#/networking", () => `
+  ${pageHead("Networking", "Adapters, addressing and firewall rules on the simulated server.")}
+  <div class="grid grid-2">
+    <div class="card"><h2>Adapter — Ethernet</h2>${kvTable([["Status", "Up"], ["ifIndex", "12"], ["IPv4", "192.168.10.10/24"], ["Gateway", "192.168.10.1"], ["DNS", "127.0.0.1"]])}</div>
+    <div class="card"><h2>Connectivity</h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Try the simulated diagnostics:</div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn primary" data-test="Test-Connection -ComputerName 192.168.10.1 -Count 2">Ping gateway</button>
+        <button class="btn primary" data-test="Test-NetConnection -ComputerName 192.168.10.1 -Port 53">Test port 53</button>
+      </div>
+    </div>
+  </div>
+  <h2>Firewall rules</h2>
+  ${dataTable(["Display name", "Direction", "Action", "Enabled"], SAMPLE.firewall)}
+  <h2>Quick Commands</h2>
+  ${cmdCard("Get-NetAdapter", "List network adapters.")}
+  ${cmdCard("Get-NetIPAddress", "Show the IPv4 configuration.")}
+  ${cmdCard("New-NetFirewallRule -DisplayName 'Allow RDP' -Direction Inbound -Action Allow", "Create an inbound firewall rule.")}
+  ${cmdCard("Test-Connection -ComputerName 192.168.10.1 -Count 2", "Simulated ping with replies.")}`);
+
+/* ---------------- Storage ---------------- */
+route("#/storage", () => `
+  ${pageHead("Storage and File Services", "Disks, volumes and SMB shares on the simulated server.")}
+  <h2>Disks</h2>
+  ${dataTable(["#", "Friendly name", "Size", "Partition style", "Status"], SAMPLE.disks)}
+  <h2>Volumes</h2>
+  ${dataTable(["Drive", "Label", "File system", "Size", "Free"], SAMPLE.volumes)}
+  <h2>SMB shares</h2>
+  ${dataTable(["Name", "Path", "Description"], SAMPLE.shares)}
+  <h2>Quick Commands</h2>
+  ${cmdCard("Get-Disk", "List physical disks.")}
+  ${cmdCard("Initialize-Disk -Number 1 -PartitionStyle GPT", "Initialize the RAW disk.")}
+  ${cmdCard("New-Partition -DiskNumber 1 -UseMaximumSize -DriveLetter D", "Create a partition on disk 1.")}
+  ${cmdCard("Format-Volume -DriveLetter D -FileSystem NTFS", "Format the new volume.")}
+  ${cmdCard("New-SmbShare -Name 'Data' -Path 'D:\\Data'", "Publish an SMB file share.")}`);
+
+/* ---------------- Security ---------------- */
+route("#/security", () => {
+  const services = (typeof SimTerminal !== "undefined" && SimTerminal.sharedServices) || SAMPLE.services;
+  const rows = services
+    .map(s => `<tr><td>${esc(s[0])}</td><td>${esc(s[1])}</td>
+      <td>${s[2] === "Running" ? '<span class="badge green">Running</span>' : '<span class="badge">Stopped</span>'}</td></tr>`).join("");
+  return `
+  ${pageHead("Security and Administration", "Services, events and local accounts. Service changes made in the terminal appear here.")}
+  <h2>Services</h2>
+  <div class="card" style="padding:6px 8px;overflow-x:auto"><table>
+    <thead><tr><th>Name</th><th>Display name</th><th>Status</th></tr></thead><tbody>${rows}</tbody>
+  </table></div>
+  <div class="btn-row">
+    <button class="btn primary" data-test="Start-Service -Name Spooler">Start Spooler (test)</button>
+    <button class="btn" data-test="Get-Service">Refresh via terminal</button>
+  </div>
+  <h2 style="margin-top:22px">Recent events</h2>
+  ${dataTable(["Time", "Id", "Log", "Message"], SAMPLE.events)}
+  <h2>Quick Commands</h2>
+  ${cmdCard("Get-Service", "List services and their status.")}
+  ${cmdCard("Start-Service -Name Spooler", "Start a stopped service.")}
+  ${cmdCard("Get-EventLog -LogName System -Newest 5", "Read the most recent system events.")}`;
+});
+
+/* ---------------- Learning Lab ---------------- */
+function updateProgress() {
+  const el = document.getElementById("lab-progress");
+  if (el) {
+    const n = Object.keys(store.data.exercises).length;
+    el.textContent = `Progress: ${n}/15 exercises`;
+  }
+}
+
+route("#/learning-lab", () => {
+  const n = Object.keys(store.data.exercises).length;
+  const items = EXERCISES.map((ex, i) => {
+    const id = String(i + 1);
+    const done = !!store.data.exercises[id];
+    const steps = ex.steps.map(s => `
+      <div class="step">
+        <code>${esc(s.cmd)}</code>
+        <div class="step-desc">${esc(s.desc)}</div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn" data-copy="${esc(s.cmd)}">Copy</button>
+          <button class="btn primary" data-test="${esc(s.cmd)}">Test in Simulator</button>
+        </div>
+      </div>`).join("");
+    return `
+    <div class="exercise">
+      <div class="ex-head">
+        <span class="num ${done ? "done" : ""}">${done ? "✓" : id}</span>
+        <span class="title">${esc(ex.title)}</span>
+        <button class="btn">Show</button>
+      </div>
+      <div class="ex-body">
+        <div class="label">Objective</div><div style="font-size:14px">${esc(ex.objective)}</div>
+        <div class="label">Prerequisites</div><div style="font-size:14px">${esc(ex.prerequisites)}</div>
+        <div class="label">Steps</div>${steps}
+        <div class="label">Expected result</div><div style="font-size:14px">${esc(ex.expected)}</div>
+        <div class="label">Validation</div><div style="font-size:14px">${esc(ex.validation)}</div>
+        <div class="label">Common errors</div><div style="font-size:14px;color:var(--amber)">${esc(ex.errors)}</div>
+        <label class="check-row"><input type="checkbox" data-ex="${id}" ${done ? "checked" : ""}> Mark this exercise as complete</label>
+      </div>
+    </div>`;
+  }).join("");
+  return `
+  ${pageHead("Learning Lab", "Fifteen guided exercises that build your complete lab, step by step.")}
+  <div class="card"><h2 id="lab-progress">Progress: ${n}/15 exercises</h2>
+    <div style="font-size:13px;color:var(--muted)">Tick the checkbox when you finish an exercise — your progress is saved in this browser.</div>
+  </div>
+  ${items}`;
+});
+
+/* ---------------- Command Reference ---------------- */
+const CATEGORIES = ["All categories", ...new Set(COMMANDS.map(c => c.category))];
+
+route("#/command-reference",
+  () => `
+  ${pageHead("Command Reference", "Every simulated command, searchable, with syntax, examples and expected output.")}
+  <div class="ref-toolbar">
+    <input id="ref-search" placeholder="Search commands, syntax, or descriptions…" aria-label="Search commands">
+    <select id="ref-cat" aria-label="Filter by category">
+      ${CATEGORIES.map(c => `<option>${esc(c)}</option>`).join("")}
+    </select>
+  </div>
+  <div class="ref-count" id="ref-count"></div>
+  <div id="ref-list"></div>`,
+  () => {
+    const searchEl = document.getElementById("ref-search");
+    const catEl = document.getElementById("ref-cat");
+    const draw = () => {
+      const q = searchEl.value.trim().toLowerCase();
+      const cat = catEl.value;
+      const list = COMMANDS.filter(c => {
+        if (cat !== "All categories" && c.category !== cat) return false;
+        if (!q) return true;
+        return (c.name + " " + c.description + " " + c.syntax).toLowerCase().includes(q);
+      });
+      document.getElementById("ref-count").textContent = `${list.length} command(s) found`;
+      document.getElementById("ref-list").innerHTML = list.map(c => `
+        <div class="ref-item">
+          <div class="ref-head">
+            <span class="rname">${esc(c.name)}</span>
+            <span class="badge">${esc(c.category)}</span>
+            <span class="badge ${c.badge === "Reference" ? "amber" : "blue"}">${esc(c.badge || "Simulated")}</span>
+          </div>
+          <div class="ref-body">
+            <div style="font-size:14px;margin:10px 0">${esc(c.description)}</div>
+            <div class="label">Syntax</div><pre class="code">${esc(c.syntax)}</pre>
+            <div class="label">Example</div><pre class="code">${esc(c.example)}</pre>
+            <div class="label">Expected output</div><div style="font-size:13px">${esc(c.expected)}</div>
+            <div class="label">Prerequisites</div><div style="font-size:13px">${esc(c.prerequisites)}</div>
+            <div class="label">Privileges</div><div style="font-size:13px">${esc(c.privileges)}</div>
+            <div class="label">Common errors</div><div style="font-size:13px;color:var(--amber)">${esc(c.errors)}</div>
+            <div class="btn-row">
+              <button class="btn" data-copy="${esc(c.example)}">Copy example</button>
+              ${c.badge === "Reference" ? "" : `<button class="btn primary" data-test="${esc(c.example)}">Test in Simulator</button>`}
+            </div>
+          </div>
+        </div>`).join("") || `<div class="card">No commands match your search.</div>`;
+    };
+    searchEl.addEventListener("input", draw);
+    catEl.addEventListener("change", draw);
+    draw();
+  }
+);
+
+/* ---------------- Settings ---------------- */
+function exportState() {
+  const blob = new Blob([JSON.stringify(store.data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "servercore-lab-export.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast("Configuration exported as JSON");
+}
+
+function importFromText() {
+  const ta = document.getElementById("import-text");
+  try {
+    const parsed = JSON.parse(ta.value);
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.roles)) throw new Error("bad shape");
+    store.data = Object.assign(defaultState(), parsed);
+    store.save();
+    toast("Configuration imported");
+    render();
+  } catch (e) {
+    toast("Import failed — invalid JSON");
+  }
+}
+
+route("#/settings", () => `
+  ${pageHead("Settings", "Manage your local lab state. Everything is stored locally in your browser.")}
+  <div class="card">
+    <h2>Reset Lab</h2>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Erase all simulated state (roles, DHCP config, progress) and start over.</div>
+    <button class="btn danger" id="reset-open">Reset Lab</button>
+  </div>
+  <div class="card">
+    <h2>Export JSON</h2>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Download your current lab configuration as a JSON file.</div>
+    <button class="btn" id="export-json">Export JSON</button>
+  </div>
+  <div class="card">
+    <h2>Import Configuration</h2>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn" id="import-file-btn">Choose file</button>
+      <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+    </div>
+    <textarea id="import-text" placeholder="…or paste exported JSON here"></textarea>
+    <button class="btn primary" id="import-text-btn">Import from text</button>
+  </div>
+  <div class="modal-backdrop" id="reset-modal">
+    <div class="modal">
+      <h2>Reset the entire lab?</h2>
+      <p>This erases all simulated state stored in your browser and cannot be undone. Consider exporting your configuration first.</p>
+      <div class="btn-row">
+        <button class="btn" id="reset-cancel">Cancel</button>
+        <button class="btn danger" id="reset-confirm">Reset</button>
+      </div>
+    </div>
+  </div>`,
+  () => {
+    document.getElementById("import-file").addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { document.getElementById("import-text").value = r.result; importFromText(); };
+      r.readAsText(f);
+    });
+  }
+);
+
+/* ---------------- About ---------------- */
+route("#/about", () => `
+  ${pageHead("About & License", "What this project is and how you may use it.")}
+  <div class="card"><h2>MEDC ServerCore Lab Training</h2>
+    ${kvTable([
+      ["Version", "1.0.0"],
+      ["Released", "2026-10-09"],
+      ["Created by", "Yassine Med"],
+      ["Type", "Educational simulator (client-side)"],
+      ["Backend", "None — runs entirely in the browser"],
+    ])}
+  </div>
+  <div class="card"><h2>Please note</h2>
+    <div style="font-size:14px;color:var(--muted);line-height:1.7">
+      This is a training simulator. Commands are simulated and do not execute on a real operating system.
+      All lab state is stored locally in your browser.
+    </div>
+  </div>
+  <div class="card"><h2>License</h2>
+    <ul style="font-size:14px;color:var(--muted);line-height:1.9;margin:0;padding-left:20px">
+      <li>Personal and educational use, including classroom use, is allowed.</li>
+      <li>Redistribution of the application is not permitted.</li>
+      <li>Attribution to the creator is required when referencing this work.</li>
+      <li>Microsoft, Windows, Windows Server, PowerShell and Active Directory are trademarks of Microsoft.</li>
+      <li>This is an independent educational project, not affiliated with or endorsed by Microsoft.</li>
+    </ul>
+  </div>`);
+
+/* ---------------- init ---------------- */
+window.addEventListener("hashchange", render);
+if (!location.hash) location.hash = "#/";
+render();

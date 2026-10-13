@@ -1,0 +1,9 @@
+# Editor / OS artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Local lab exports (keep your own, don't commit)
+servercore-lab-export.json

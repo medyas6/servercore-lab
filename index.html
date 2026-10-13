@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEDC ServerCore Lab Training</title>
+  <meta name="description" content="Client-side Windows Server administration simulator for training. Created by Yassine Med.">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <button id="menu-toggle" aria-label="Toggle navigation">&#9776;</button>
+
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-title">MEDC ServerCore<br>Lab Training</div>
+      <span class="badge-sim">Server Core Simulator</span>
+    </div>
+    <nav id="nav" aria-label="Main navigation"></nav>
+    <div class="sidebar-footer">v1.0.0</div>
+  </aside>
+
+  <div id="main">
+    <div class="sim-banner">&#9888; Simulated environment &mdash; commands do not run on a real Windows operating system.</div>
+    <main id="app" aria-live="polite"></main>
+    <footer>
+      MEDC ServerCore Lab Training v1.0.0 &middot; Released 2026-10-09 &middot;
+      Created by Yassine Med &middot; &copy; 2026 Yassine Med. All rights reserved.
+    </footer>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/terminal.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
