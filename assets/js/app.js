@@ -745,11 +745,11 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Why I built this</h2>
     <div class="human-note">
-      I'm Yassine, a 2nd-year Infrastructure Digitale student at OFPPT (Systèmes et Réseaux).
-      I kept forgetting PowerShell commands and EFM theory, so instead of re-reading the same
-      PDF for the tenth time, I built the lab I wished existed: a fake Windows Server where
-      you can actually type commands, break things safely, and quiz yourself like it's the
-      real exam. If you're in my class — good luck on the EFM, and beat my high score.
+      I'm Yassine. I kept forgetting PowerShell commands and exam theory, so instead of
+      re-reading the same PDF for the tenth time, I built the lab I wished existed: a
+      fake Windows Server where you can actually type commands, break things safely, and
+      quiz yourself like it's the real exam. If you're in my class — good luck on the
+      EFM, and beat my high score.
     </div>
   </div>
   <div class="card"><h2>Changelog</h2>
