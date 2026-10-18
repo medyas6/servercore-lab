@@ -1,6 +1,6 @@
 /* ============================================================
    MEDC ServerCore Lab Training — data catalog
-   Command reference entries, learning-lab exercises, sample data.
+   la2s2ila dyal command reference, les exercises dyal learning-lab, sample data.
    ============================================================ */
 
 const COMMANDS = [

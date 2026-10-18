@@ -1,6 +1,6 @@
 /* ============================================================
-   MEDC ServerCore Lab Training — "phosphor" theme
-   Terminal-native, modern, human-made. Dark only.
+   MEDC ServerCore Lab Training — theme "phosphor"
+   style terminal, 3asri, khdam b yed bnadem. ghir dark.
    ============================================================ */
 :root {
   --bg: #0a0d12;
@@ -12,11 +12,11 @@
   --text: #e9eef5;
   --muted: #8b95a7;
   --faint: #5c6678;
-  --accent: #3ddc84;                 /* phosphor green */
+  --accent: #3ddc84;                 /* lkhdar dyal phosphor */
   --accent-soft: rgba(61, 220, 132, 0.12);
   --accent-border: rgba(61, 220, 132, 0.45);
   --accent-hover: #31bd70;
-  --accent-ink: #04120a;             /* dark text on accent buttons */
+  --accent-ink: #04120a;             /* ktaba khla fo9 lboutonat lkhdar */
   --amber: #f5a524;
   --amber-soft: rgba(245, 165, 36, 0.1);
   --red: #f2555a;

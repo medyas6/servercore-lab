@@ -1,8 +1,8 @@
 /* ============================================================
    MEDC ServerCore Lab Training — Quiz QCM (M202)
-   Question bank: cours "Administrer un environnement Windows"
-   + questions théoriques de l'EFM officiel OFPPT (DR Rabat-Salé-Kénitra 2022/2023).
-   Les questions marquées efm:true viennent du corrigé officiel de l'EFM.
+   la2s2ila mn cours "Administrer un environnement Windows"
+   + la2s2ila theoriq dyal EFM officiel (DR Rabat-Salé-Kénitra 2022/2023).
+   li fihum efm:true jayin mn corrigé officiel dyal EFM.
    ============================================================ */
 
 const QUIZ_MODULES = [
@@ -336,7 +336,7 @@ const QuizApp = {
   KEY: "servercore-quiz-v1",
   TIME_PER_Q: 30,
   mountEl: null, timer: null, timeLeft: 0,
-  questions: [], idx: 0, score: 0, answers: [], // {q, ok, mod}
+  questions: [], idx: 0, score: 0, answers: [], // chkel dyal kol jawab: {q, ok, mod}
   selectedMods: null, qCount: 20,
 
   load() {

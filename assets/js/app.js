@@ -1,9 +1,9 @@
 /* ============================================================
    MEDC ServerCore Lab Training — application shell
-   Hash router, page renderers, shared store, UI helpers.
+   hash router, les pages, store mchtarka, des helpers dyal UI.
    ============================================================ */
 
-/* ---------------- persistent store ---------------- */
+/* ---------------- store li katb9a m7fouda ---------------- */
 const STORE_KEY = "servercore-lab-v1";
 
 function defaultState() {
@@ -58,7 +58,7 @@ function prefixToMask(plen) {
   return [(mask >>> 24) & 255, (mask >>> 16) & 255, (mask >>> 8) & 255, mask & 255].join(".");
 }
 
-/* ---------- hero background animation (subtle drifting particles) ---------- */
+/* ---------- lanimation dyal background f hero (no9at khdar tayt7rko bchwiya) ---------- */
 let heroRAF = null;
 function stopHeroFX() {
   if (heroRAF) { cancelAnimationFrame(heroRAF); heroRAF = null; }
@@ -149,7 +149,7 @@ function dataTable(headers, rows) {
     `</tbody></table></div>`;
 }
 
-/* Quick-command card: monospace command + Copy + Test in Simulator */
+/* carte dyal quick-command: command + Copy + Test in Simulator */
 function cmdCard(cmd, desc) {
   return `<div class="card cmd-card">
     <div class="cmd-line"><code>${esc(cmd)}</code></div>
@@ -214,7 +214,7 @@ function route(path, fn, init) {
   ROUTES[path] = fn;
 }
 
-/* "Test in Simulator": run a command in the terminal page */
+/* "Test in Simulator": taykhdem command f page terminal */
 function testInSimulator(cmd) {
   const onTerminal = (location.hash || "#/") === "#/terminal";
   if (onTerminal && currentTerm) { currentTerm.execute(cmd); return; }
@@ -223,7 +223,7 @@ function testInSimulator(cmd) {
   else location.hash = "#/terminal";
 }
 
-/* ---------------- global click delegation ---------------- */
+/* ---------------- click delegation lkolchi ---------------- */
 document.addEventListener("click", (e) => {
   const t = e.target;
   const closest = (sel) => t.closest(sel);
@@ -411,7 +411,7 @@ route("#/dhcp", () => {
   ${cmdCard("Get-DhcpServerv4Lease -ScopeId 10", "Show active leases (generated per session).")}`;
 });
 
-/* DORA animation */
+/* lanimation dyal DORA */
 function runDora() {
   const log = document.getElementById("dora-log");
   const btn = document.getElementById("dora-run");

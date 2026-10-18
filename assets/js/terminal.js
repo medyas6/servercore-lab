@@ -1,10 +1,10 @@
 /* ============================================================
    MEDC ServerCore Lab Training — PowerShell simulator
-   Client-side only. State-changing commands update the shared
-   store (persisted in localStorage); leases are session-only.
+   ghir client-side. les commands li kaybdlo state tay updataw
+   store lmchtarka (m7fouda f localStorage); leases ghir dyal session.
    ============================================================ */
 
-/* ---------- tiny shell tokenizer (respects quotes) ---------- */
+/* ---------- tokenizer sghir dyal shell (tay7tarem quotes) ---------- */
 function tokenize(line) {
   const out = [];
   let cur = "", quote = null;
@@ -25,7 +25,7 @@ function tokenize(line) {
   return out;
 }
 
-/* Parse: first token = command, rest = -Name value pairs / flags / positionals */
+/* parse: awal token hiya command, lba9i: -Name value / flags / positionals */
 function parseLine(line) {
   const tokens = tokenize(line.trim());
   if (!tokens.length) return null;
@@ -71,9 +71,9 @@ class SimTerminal {
   constructor(rootEl, store) {
     this.root = rootEl;
     this.store = store;
-    this.sessionLeases = {};   // scopeId -> leases (NOT persisted)
+    this.sessionLeases = {};   // scopeId -> leases (ma kayttsajalch, ghir dyal session)
     this.sessionServices = SAMPLE.services.map(r => [...r]);
-    SimTerminal.sharedServices = this.sessionServices; // visible to the Security page
+    SimTerminal.sharedServices = this.sessionServices; // katban f page Security
     this.histKey = "servercore-term-history-v1";
     this.history = [];
     try { this.history = JSON.parse(localStorage.getItem(this.histKey) || "[]"); } catch (e) { this.history = []; }
@@ -81,7 +81,7 @@ class SimTerminal {
     this.lastOutput = "";
     this.build();
     this.printBanner();
-    // "Test in Simulator" support
+    // bach ykhdem "Test in Simulator"
     if (window.__pendingCommand) {
       const cmd = window.__pendingCommand;
       window.__pendingCommand = null;
@@ -123,7 +123,7 @@ class SimTerminal {
   }
 
   print(lines) {
-    // lines: array of strings or [text, className]
+    // lines: array dyal strings wla [text, className]
     const html = lines.map(l => {
       if (Array.isArray(l)) return `<span class="${l[1]}">${this.esc(l[0])}</span>`;
       return this.esc(l);
