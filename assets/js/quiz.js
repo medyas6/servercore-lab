@@ -345,6 +345,26 @@ const QuizApp = {
   },
   save(data) { try { localStorage.setItem(this.KEY, JSON.stringify(data)); } catch (e) {} },
   stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null; } },
+  unbindKeys() {
+    if (this._keyHandler) { document.removeEventListener("keydown", this._keyHandler); this._keyHandler = null; }
+  },
+  bindKeys() {
+    this.unbindKeys();
+    this._keyHandler = (e) => {
+      if (!document.body.contains(this.mountEl)) { this.unbindKeys(); return; }
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const k = e.key.toLowerCase();
+      if (this._awaitingAnswer) {
+        const map = { "1": 0, "2": 1, "3": 2, "4": 3, "a": 0, "b": 1, "c": 2, "d": 3 };
+        if (k in map) { e.preventDefault(); this.answer(map[k]); }
+      } else if (k === "enter") {
+        const nx = document.getElementById("quiz-next");
+        if (nx) { e.preventDefault(); nx.click(); }
+      }
+    };
+    document.addEventListener("keydown", this._keyHandler);
+  },
 
   shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -358,7 +378,9 @@ const QuizApp = {
   /* ---------- setup screen ---------- */
   mount(el) {
     this.stopTimer();
+    this.unbindKeys();
     this.mountEl = el;
+    this.bindKeys();
     const data = this.load();
     const board = data.board.slice(0, 5);
     el.innerHTML = `
@@ -379,6 +401,8 @@ const QuizApp = {
         </label>
         <button class="btn primary" id="quiz-start">Démarrer le quiz</button>
       </div>
+      <label class="quiz-efm-toggle"><input type="checkbox" id="quiz-efm-only"> Questions EFM uniquement <span style="color:var(--amber)">(${QUIZ_BANK.filter(q => q.efm).length} questions officielles)</span></label>
+      <div class="quiz-kbd"><kbd>1</kbd>–<kbd>4</kbd> ou <kbd>A</kbd>–<kbd>D</kbd> pour répondre &middot; <kbd>Entrée</kbd> pour continuer</div>
       ${data.best ? `<div style="font-size:13px;color:var(--muted);margin-top:8px">Ton record : <b style="color:var(--accent)">${data.best} pts</b></div>` : ""}
     </div>
     <div class="card"><h2>Meilleurs scores (cet appareil)</h2>
@@ -398,14 +422,29 @@ const QuizApp = {
     const checked = [...this.mountEl.querySelectorAll("[data-mod]:checked")].map(x => x.getAttribute("data-mod"));
     if (!checked.length) { alert("Sélectionne au moins un module."); return; }
     let n = parseInt(this.mountEl.querySelector("#quiz-count").value, 10);
-    let pool = this.shuffle(QUIZ_BANK.filter(q => checked.includes(q.m)).slice());
+    const efmOnly = this.mountEl.querySelector("#quiz-efm-only").checked;
+    let pool = this.shuffle(QUIZ_BANK.filter(q => checked.includes(q.m) && (!efmOnly || q.efm)).slice());
+    if (!pool.length) { alert("Aucune question avec ces filtres."); return; }
     if (n > 0) pool = pool.slice(0, n);
     if (!pool.length) return;
     this.questions = pool.map(q => {
       const order = this.shuffle([0, 1, 2, 3]);
       return { q, order, good: order.indexOf(q.a) };
     });
-    this.idx = 0; this.score = 0; this.answers = [];
+    this.idx = 0; this.score = 0; this.answers = []; this.streak = 0;
+    this._reviewMode = false;
+    this.renderQuestion();
+  },
+
+  startReview() {
+    const wrongItems = this.answers.filter(a => !a.ok).map(a => a.item);
+    if (!wrongItems.length) return;
+    this.questions = this.shuffle(wrongItems.map(it => {
+      const order = this.shuffle([0, 1, 2, 3]);
+      return { q: it.q, order, good: order.indexOf(it.q.a) };
+    }));
+    this.idx = 0; this.score = 0; this.answers = []; this.streak = 0;
+    this._reviewMode = true;
     this.renderQuestion();
   },
 
@@ -414,10 +453,12 @@ const QuizApp = {
     const item = this.questions[this.idx];
     const total = this.questions.length;
     this.timeLeft = this.TIME_PER_Q;
+    this._awaitingAnswer = true;
+    const streakHtml = (this.streak >= 2) ? `<span class="quiz-streak">🔥 série x${this.streak}</span>` : "";
     el.innerHTML = `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)">
-        <span>Question ${this.idx + 1}/${total} · ${esc(this.modName(item.q.m))}${item.q.efm ? ' · <span style="color:#f5a524">EFM</span>' : ''}</span>
+        <span>Question ${this.idx + 1}/${total} · ${esc(this.modName(item.q.m))}${item.q.efm ? ' · <span style="color:#f5a524">EFM</span>' : ''}${this._reviewMode ? ' · <span style="color:var(--amber)">révision des erreurs</span>' : ''}${streakHtml}</span>
         <span>Score : <b style="color:var(--accent)">${this.score}</b></span>
       </div>
       <div class="quiz-timer" id="quiz-timerbar"><div style="width:100%"></div></div>
@@ -442,6 +483,7 @@ const QuizApp = {
 
   answer(pos) {
     this.stopTimer();
+    this._awaitingAnswer = false;
     const el = this.mountEl;
     const item = this.questions[this.idx];
     const ok = pos === item.good;
@@ -449,8 +491,11 @@ const QuizApp = {
     if (ok) {
       gained = 10 + Math.ceil(5 * (this.timeLeft / this.TIME_PER_Q));
       this.score += gained;
+      this.streak = (this.streak || 0) + 1;
+    } else {
+      this.streak = 0;
     }
-    this.answers.push({ mod: item.q.m, ok });
+    this.answers.push({ mod: item.q.m, ok, item });
     el.querySelectorAll(".quiz-choice").forEach(b => {
       b.disabled = true;
       const p = parseInt(b.getAttribute("data-pos"), 10);
@@ -486,6 +531,7 @@ const QuizApp = {
     const isBest = this.score > (data.best || 0);
     if (isBest) { data.best = this.score; this.save(data); }
     const msg = pct >= 80 ? "Excellent ! Niveau EFM validé." : pct >= 60 ? "Bien ! Encore quelques révisions." : pct >= 40 ? "Pas mal, mais il faut revoir le cours." : "Revois le cours et retente le quiz !";
+    const wrongCount = this.answers.filter(a => !a.ok).length;
     el.innerHTML = `
     <div class="card" style="text-align:center">
       <h2>Résultat</h2>
@@ -507,9 +553,12 @@ const QuizApp = {
     </div>
     <div class="card"><div class="btn-row">
       <button class="btn primary" id="quiz-retry">Rejouer</button>
+      ${wrongCount ? `<button class="btn" id="quiz-review">Revoir mes erreurs (${wrongCount})</button>` : ""}
       <button class="btn" id="quiz-setup">Changer de modules</button>
     </div></div>`;
     el.querySelector("#quiz-retry").addEventListener("click", () => this.start());
+    const rev = el.querySelector("#quiz-review");
+    if (rev) rev.addEventListener("click", () => this.startReview());
     el.querySelector("#quiz-setup").addEventListener("click", () => this.mount(el));
     el.querySelector("#quiz-save").addEventListener("click", () => {
       const name = (el.querySelector("#quiz-name").value || "Anonyme").trim().slice(0, 20) || "Anonyme";

@@ -137,7 +137,7 @@ class SimTerminal {
   printBanner() {
     this.print([
       ["MEDC ServerCore Lab Training — PowerShell Simulator v1.0.0", "t-dim"],
-      ["Created by Yassine Med. © 2026 Yassine Med. All rights reserved.", "t-dim"],
+      ["Created by medyas. © 2026 medyas. All rights reserved.", "t-dim"],
       ["Type 'help' for a quick start, 'Get-Command' to list supported commands.", "t-dim"],
       ["⚠ Commands are simulated and do not execute on a real operating system.", "t-err"],
       ["", ""],

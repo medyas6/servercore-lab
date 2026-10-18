@@ -58,6 +58,54 @@ function prefixToMask(plen) {
   return [(mask >>> 24) & 255, (mask >>> 16) & 255, (mask >>> 8) & 255, mask & 255].join(".");
 }
 
+/* ---------- hero background animation (subtle drifting particles) ---------- */
+let heroRAF = null;
+function stopHeroFX() {
+  if (heroRAF) { cancelAnimationFrame(heroRAF); heroRAF = null; }
+}
+function initHeroFX() {
+  stopHeroFX();
+  const cv = document.getElementById("hero-canvas");
+  if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const hero = cv.parentElement;
+  const W = cv.width = hero.offsetWidth, H = cv.height = hero.offsetHeight;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    ctx.fillStyle = "rgba(61,220,132,0.05)";
+    for (let i = 0; i < 40; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+    return;
+  }
+  const N = Math.min(90, Math.floor(W * H / 9000));
+  const ps = [];
+  for (let i = 0; i < N; i++) ps.push({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - 0.3) * 0.35, vy: (Math.random() - 0.6) * 0.3,
+    r: Math.random() * 1.8 + 0.6, a: Math.random() * 0.5 + 0.15,
+  });
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -10) p.x = W + 10; if (p.x > W + 10) p.x = -10;
+      if (p.y < -10) p.y = H + 10; if (p.y > H + 10) p.y = -10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, 6.283);
+      ctx.fillStyle = `rgba(61,220,132,${p.a * 0.5})`;
+      ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(61,220,132,0.07)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const dx = ps[i].x - ps[j].x, dy = ps[i].y - ps[j].y;
+      if (dx * dx + dy * dy < 7000) {
+        ctx.beginPath(); ctx.moveTo(ps[i].x, ps[i].y); ctx.lineTo(ps[j].x, ps[j].y); ctx.stroke();
+      }
+    }
+    heroRAF = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
 let toastTimer = null;
 function toast(msg) {
   const el = document.getElementById("toast");
@@ -150,6 +198,7 @@ const ROUTES = {};
 
 function render() {
   const hash = (location.hash || "#/").split("?")[0];
+  stopHeroFX();
   renderNav();
   const app = document.getElementById("app");
   const fn = ROUTES[hash] || ROUTES["#/"];
@@ -247,7 +296,17 @@ route("#/", () => {
     ["Adapter", "Ethernet (ifIndex 12)"],
   ];
   return `
-  ${pageHead("MEDC ServerCore Lab Training — Dashboard", "Your simulated Windows Server 2019 lab. Install roles, run commands, and track your progress.")}
+  <div class="hero">
+    <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-kicker"><span class="pulse-dot"></span>SIMULATED WINDOWS SERVER 2019 &middot; LIVE LAB</div>
+    <h1 class="hero-title">MEDC ServerCore <span>Lab Training</span></h1>
+    <p class="hero-sub">Install roles, run PowerShell commands and track your progress &mdash; everything runs in your browser, nothing touches a real server.</p>
+    <div class="btn-row hero-actions">
+      <button class="btn primary" data-goto="#/terminal">Open terminal</button>
+      <button class="btn" data-goto="#/quiz">Start QCM quiz</button>
+      <button class="btn" data-goto="#/learning-lab">Learning lab</button>
+    </div>
+  </div>
   <div class="card">
     <h2>&#128994; Getting started</h2>
     <div style="font-size:14px;color:var(--muted);line-height:2">
@@ -271,7 +330,8 @@ route("#/", () => {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${roleBadges}</div>
     <div class="btn-row"><button class="btn" data-goto="#/roles">Manage roles</button></div>
   </div>`;
-});
+},
+() => initHeroFX());
 
 /* ---------------- Terminal page ---------------- */
 route("#/terminal",
@@ -676,12 +736,28 @@ route("#/about", () => `
   ${pageHead("About & License", "What this project is and how you may use it.")}
   <div class="card"><h2>MEDC ServerCore Lab Training</h2>
     ${kvTable([
-      ["Version", "1.0.0"],
+      ["Version", "1.1.0"],
       ["Released", "2026-10-09"],
-      ["Created by", "Yassine Med"],
+      ["Created by", "medyas"],
       ["Type", "Educational simulator (client-side)"],
       ["Backend", "None — runs entirely in the browser"],
     ])}
+  </div>
+  <div class="card"><h2>Why I built this</h2>
+    <div class="human-note">
+      I'm Yassine, a 2nd-year Infrastructure Digitale student at OFPPT (Systèmes et Réseaux).
+      I kept forgetting PowerShell commands and EFM theory, so instead of re-reading the same
+      PDF for the tenth time, I built the lab I wished existed: a fake Windows Server where
+      you can actually type commands, break things safely, and quiz yourself like it's the
+      real exam. If you're in my class — good luck on the EFM, and beat my high score.
+    </div>
+  </div>
+  <div class="card"><h2>Changelog</h2>
+    <ul class="changelog">
+      <li><span class="ver">v1.1.0</span><span class="date">2026-10-18</span> — New phosphor-green design, animated dashboard, QCM quiz (96 questions incl. real EFM ones), human About page. The site finally looks like I wanted.</li>
+      <li><span class="ver">v1.0.1</span><span class="date">2026-10-18</span> — Fixed: terminal commands (rename, IP, DNS) now actually update the dashboard. Before that they just printed ✔ and changed nothing — my bad.</li>
+      <li><span class="ver">v1.0.0</span><span class="date">2026-10-09</span> — First release: PowerShell simulator, DHCP/DNS/AD labs, 15 exercises, command reference.</li>
+    </ul>
   </div>
   <div class="card"><h2>Please note</h2>
     <div style="font-size:14px;color:var(--muted);line-height:1.7">

@@ -4,13 +4,22 @@ A **client-side Windows Server administration simulator** for training and self-
 Practice PowerShell, DHCP, DNS, Active Directory, Group Policy and more — right in
 your browser, with zero backend and zero risk.
 
-Created by **Yassine Med** · © 2026 Yassine Med. All rights reserved.
+Created by **medyas** · © 2026 medyas. All rights reserved.
+
+> **Update 18/10/2026** — I redesigned the dashboard (new charcoal-black theme, animated
+> header, phosphor-green glow) and added a **QCM quiz mode**: 96 questions across
+> 10 modules, including 25 real EFM questions, timed answers with a speed bonus,
+> keyboard shortcuts, and a local leaderboard. If you're in my class — try to beat
+> my score.
 
 ## ✨ Features
 
+- **QCM quiz mode** — 96 questions (25 from real EFM exams), 30s timer per question,
+  speed bonus, explanations after each answer, "review my mistakes" mode, EFM-only
+  filter, and a local top-10 leaderboard
 - **PowerShell simulator** — 60+ simulated cmdlets with `↑↓` history, `Tab` completion,
   `Get-Help`, `Get-Command`, and persistent command history
-- **14 lab sections** — Dashboard, Terminal, Active Directory, Roles & Features, DNS,
+- **15 lab sections** — Dashboard, Terminal, Quiz QCM, Active Directory, Roles & Features, DNS,
   DHCP, Group Policy, Networking, Storage, Security, Learning Lab, Command Reference,
   Settings, About
 - **Live lab state** — installing roles, authorizing DHCP, creating scopes… everything
@@ -19,7 +28,8 @@ Created by **Yassine Med** · © 2026 Yassine Med. All rights reserved.
 - **Learning Lab** — 15 guided exercises with copy-and-run steps and progress tracking
 - **Command Reference** — searchable catalog with syntax, examples and expected output
 - **Settings** — reset the lab, export/import your configuration as JSON
-- **100% offline** — no frameworks, no CDNs, no build step; works from `file://`
+- **No build step** — plain HTML/CSS/JS, no frameworks; the new fonts load from Google
+  Fonts when you're online, with system fallbacks offline
 
 ## 🚀 Run it
 
@@ -38,7 +48,7 @@ python3 -m http.server 8080
    ```bash
    git init
    git add .
-   git commit -m "MEDC ServerCore Lab Training v1.0.0"
+   git commit -m "MEDC ServerCore Lab Training v1.1.0"
    git branch -M main
    git remote add origin https://github.com/USERNAME/servercore-lab.git
    git push -u origin main
@@ -56,6 +66,7 @@ servercore-lab/
 │   └── js/
 │       ├── data.js         # command catalog, exercises, sample data
 │       ├── terminal.js     # PowerShell simulator engine
+│       ├── quiz.js         # QCM quiz engine (96 questions, timer, leaderboard)
 │       └── app.js          # hash router + page renderers + store
 ├── README.md
 ├── LICENSE
