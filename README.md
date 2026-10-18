@@ -6,6 +6,11 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 18/10/2026 (v1.2.0)** — Active Directory goes full ADUC: a real forest
+> tree (domain → OUs/containers → users, computers, groups) you can browse and
+> click, plus ~25 working AD cmdlets in the terminal and 4 new ADUC quiz
+> questions (100 total now).
+>
 > **Update 18/10/2026** — I redesigned the dashboard (new charcoal-black theme, animated
 > header, phosphor-green glow) and added a **QCM quiz mode**: 96 questions across
 > 10 modules, including 25 real EFM questions, timed answers with a speed bonus,
@@ -14,10 +19,10 @@ Created by **medyas** · © 2026 medyas. All rights reserved.
 
 ## ✨ Features
 
-- **QCM quiz mode** — 96 questions (25 from real EFM exams), 30s timer per question,
+- **QCM quiz mode** — 100 questions (25 from real EFM exams), 30s timer per question,
   speed bonus, explanations after each answer, "review my mistakes" mode, EFM-only
   filter, and a local top-10 leaderboard
-- **PowerShell simulator** — 60+ simulated cmdlets with `↑↓` history, `Tab` completion,
+- **PowerShell simulator** — 80+ simulated cmdlets with `↑↓` history, `Tab` completion,
   `Get-Help`, `Get-Command`, and persistent command history
 - **15 lab sections** — Dashboard, Terminal, Quiz QCM, Active Directory, Roles & Features, DNS,
   DHCP, Group Policy, Networking, Storage, Security, Learning Lab, Command Reference,

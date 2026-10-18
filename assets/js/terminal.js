@@ -561,6 +561,277 @@ class SimTerminal {
         SAMPLE.firewall.forEach(f => out.push(pad(f[0], 28) + pad(f[1], 11) + pad(f[2], 8) + f[3]));
         return out;
       },
+
+      /* ----- Active Directory: forest lab.local kamla, state m7fouda f store ----- */
+      "get-adforest"() {
+        const ad = T.store.data.ad;
+        return ["ForestMode             : " + ad.functionalLevel,
+          "Name                   : " + ad.forest,
+          "Domains                : {" + ad.domain + "}",
+          "SchemaMaster           : " + ad.dc,
+          "DomainNamingMaster     : " + ad.dc];
+      },
+      "get-addomain"() {
+        const ad = T.store.data.ad;
+        return ["DNSRoot                : " + ad.domain,
+          "NetBIOSName            : LAB",
+          "DomainControllers      : {" + ad.dc + "}",
+          "DomainMode             : " + ad.functionalLevel];
+      },
+      "get-addomaincontroller"() {
+        const ad = T.store.data.ad;
+        return ["Name                   : " + ad.dc,
+          "Domain                 : " + ad.domain,
+          "Site                   : " + ad.site,
+          "IsGlobalCatalog        : True",
+          "OperatingSystem        : Windows Server 2019 Standard"];
+      },
+      "install-addsforest"(p) {
+        const dn = String(p.named.domainname || p.positional[0] || "lab.local").replace(/['"]/g, "");
+        T.store.data.domain = dn;
+        T.store.save();
+        return [[`✔ Forest ${dn} created; this server is now a domain controller. (simulated)`, "t-ok"]];
+      },
+      "get-aduser"(p) {
+        const ad = T.store.data.ad;
+        const id = p.named.identity || p.positional[0];
+        if (id) {
+          const u = ad.users.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+          if (!u) return [[`Get-ADUser: Cannot find an object with identity: '${id}'.`, "t-err"]];
+          return ["DistinguishedName : " + adDN(u, ad),
+            "Enabled           : " + (u.enabled ? "True" : "False"),
+            "Name              : " + u.name,
+            "SamAccountName    : " + u.name,
+            "MemberOf          : " + (u.groups.join(", ") || "(none)")];
+        }
+        const out = ["Name         Enabled  DistinguishedName", "----         -------  -----------------"];
+        ad.users.forEach(u => out.push(pad(u.name, 13) + pad(u.enabled ? "True" : "False", 9) + adDN(u, ad)));
+        return out;
+      },
+      "new-aduser"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: New-ADUser -Name <name> [-Path <OU>] [-Enabled $true|$false]", "t-err"]];
+        const ad = T.store.data.ad;
+        if (ad.users.some(x => x.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-ADUser: An object with the name '${name}' already exists.`, "t-err"]];
+        let container = "Users";
+        const m = /OU=([^,;]+)/i.exec(p.named.path || "");
+        if (m) {
+          const ou = ad.containers.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+          if (!ou) return [[`New-ADUser: OU '${m[1]}' was not found.`, "t-err"]];
+          container = ou.name;
+        }
+        const raw = p.named.enabled !== undefined ? String(p.named.enabled).toLowerCase() : "$true";
+        ad.users.push({ name: String(name), container, enabled: !(raw === "$false" || raw === "false"), groups: [] });
+        T.store.save();
+        return [[`✔ User '${name}' created in ${container}.`, "t-ok"]];
+      },
+      "set-aduser"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const u = id && ad.users.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!u) return [["Usage: Set-ADUser -Identity <name> [-Enabled $true|$false]", "t-err"]];
+        if (p.named.enabled !== undefined) {
+          const raw = String(p.named.enabled).toLowerCase();
+          u.enabled = !(raw === "$false" || raw === "false");
+        }
+        T.store.save();
+        return [[`✔ User '${u.name}' updated.`, "t-ok"]];
+      },
+      "enable-adaccount"(p) {
+        const id = p.named.identity || p.positional[0];
+        const u = id && T.store.data.ad.users.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!u) return [["Usage: Enable-ADAccount -Identity <name>", "t-err"]];
+        u.enabled = true; T.store.save();
+        return [[`✔ Account '${u.name}' enabled.`, "t-ok"]];
+      },
+      "disable-adaccount"(p) {
+        const id = p.named.identity || p.positional[0];
+        const u = id && T.store.data.ad.users.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!u) return [["Usage: Disable-ADAccount -Identity <name>", "t-err"]];
+        u.enabled = false; T.store.save();
+        return [[`✔ Account '${u.name}' disabled.`, "t-ok"]];
+      },
+      "remove-aduser"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const i = id ? ad.users.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
+        if (i < 0) return [["Usage: Remove-ADUser -Identity <name>", "t-err"]];
+        const gone = ad.users.splice(i, 1)[0];
+        ad.groups.forEach(g => { g.members = g.members.filter(m => m.toLowerCase() !== gone.name.toLowerCase()); });
+        T.store.save();
+        return [[`✔ User '${gone.name}' removed.`, "t-ok"]];
+      },
+      "get-adcomputer"(p) {
+        const ad = T.store.data.ad;
+        const id = p.named.identity || p.positional[0];
+        if (id) {
+          const c = ad.computers.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+          if (!c) return [[`Get-ADComputer: Cannot find an object with identity: '${id}'.`, "t-err"]];
+          return ["DistinguishedName : " + adDN(c, ad),
+            "Name              : " + c.name,
+            "DNSHostName       : " + c.name + "." + ad.domain];
+        }
+        const out = ["Name         DistinguishedName", "----         -----------------"];
+        ad.computers.forEach(c => out.push(pad(c.name, 13) + adDN(c, ad)));
+        return out;
+      },
+      "new-adcomputer"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: New-ADComputer -Name <name> [-Path <OU>]", "t-err"]];
+        const ad = T.store.data.ad;
+        if (ad.computers.some(x => x.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-ADComputer: An object with the name '${name}' already exists.`, "t-err"]];
+        let container = "Computers";
+        const m = /OU=([^,;]+)/i.exec(p.named.path || "");
+        if (m) {
+          const ou = ad.containers.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+          if (!ou) return [[`New-ADComputer: OU '${m[1]}' was not found.`, "t-err"]];
+          container = ou.name;
+        }
+        ad.computers.push({ name: String(name), container });
+        T.store.save();
+        return [[`✔ Computer '${name}' created in ${container}.`, "t-ok"]];
+      },
+      "remove-adcomputer"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const i = id ? ad.computers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
+        if (i < 0) return [["Usage: Remove-ADComputer -Identity <name>", "t-err"]];
+        const gone = ad.computers.splice(i, 1)[0];
+        T.store.save();
+        return [[`✔ Computer '${gone.name}' removed.`, "t-ok"]];
+      },
+      "get-adorganizationalunit"(p) {
+        const ad = T.store.data.ad;
+        const id = p.named.identity || p.positional[0];
+        const dnOf = c => (c.type === "ou" ? "OU=" : "CN=") + c.name + ",DC=lab,DC=local";
+        if (id) {
+          const c = ad.containers.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+          if (!c) return [[`Get-ADOrganizationalUnit: Cannot find an object with identity: '${id}'.`, "t-err"]];
+          return ["DistinguishedName : " + dnOf(c),
+            "Name              : " + c.name,
+            "ObjectClass       : " + (c.type === "ou" ? "organizationalUnit" : "container")];
+        }
+        const out = ["Name                  DistinguishedName", "----                  -----------------"];
+        ad.containers.forEach(c => out.push(pad(c.name, 22) + dnOf(c)));
+        return out;
+      },
+      "new-adorganizationalunit"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: New-ADOrganizationalUnit -Name <name>", "t-err"]];
+        const ad = T.store.data.ad;
+        if (ad.containers.some(x => x.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-ADOrganizationalUnit: An object with the name '${name}' already exists.`, "t-err"]];
+        ad.containers.push({ name: String(name), type: "ou" });
+        T.store.save();
+        return [[`✔ Organizational unit '${name}' created.`, "t-ok"]];
+      },
+      "remove-adorganizationalunit"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const i = id ? ad.containers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase() && x.type === "ou") : -1;
+        if (i < 0) return [["Usage: Remove-ADOrganizationalUnit -Identity <OU-name>", "t-err"]];
+        const gone = ad.containers[i];
+        const hasKids = ad.users.some(u => u.container === gone.name) || ad.computers.some(c => c.container === gone.name) || ad.groups.some(g => g.container === gone.name);
+        const rec = String(p.named.recursive || "").toLowerCase();
+        if (hasKids && rec !== "$true" && rec !== "true")
+          return [[`Remove-ADOrganizationalUnit: '${gone.name}' is not empty. Use -Recursive to delete it with its objects.`, "t-err"]];
+        ad.users = ad.users.filter(u => u.container !== gone.name);
+        ad.computers = ad.computers.filter(c => c.container !== gone.name);
+        ad.groups = ad.groups.filter(g => g.container !== gone.name);
+        ad.containers.splice(i, 1);
+        T.store.save();
+        return [[`✔ Organizational unit '${gone.name}' removed.`, "t-ok"]];
+      },
+      "get-adgroup"(p) {
+        const ad = T.store.data.ad;
+        const id = p.named.identity || p.positional[0];
+        if (id) {
+          const g = ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+          if (!g) return [[`Get-ADGroup: Cannot find an object with identity: '${id}'.`, "t-err"]];
+          return ["DistinguishedName : " + adDN(g, ad),
+            "Name              : " + g.name,
+            "GroupScope        : " + g.scope,
+            "Members           : " + (g.members.join(", ") || "(none)")];
+        }
+        const out = ["Name             Scope     DistinguishedName", "----             -----     -----------------"];
+        ad.groups.forEach(g => out.push(pad(g.name, 17) + pad(g.scope, 10) + adDN(g, ad)));
+        return out;
+      },
+      "new-adgroup"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: New-ADGroup -Name <name> -GroupScope <Global|DomainLocal|Universal>", "t-err"]];
+        const ad = T.store.data.ad;
+        if (ad.groups.some(x => x.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-ADGroup: An object with the name '${name}' already exists.`, "t-err"]];
+        const want = String(p.named.groupscope || "Global").toLowerCase();
+        const scope = ["Global", "DomainLocal", "Universal"].find(s => s.toLowerCase() === want) || "Global";
+        ad.groups.push({ name: String(name), scope, container: "Users", members: [] });
+        T.store.save();
+        return [[`✔ Group '${name}' (${scope}) created in Users.`, "t-ok"]];
+      },
+      "remove-adgroup"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const i = id ? ad.groups.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
+        if (i < 0) return [["Usage: Remove-ADGroup -Identity <name>", "t-err"]];
+        const gone = ad.groups.splice(i, 1)[0];
+        ad.users.forEach(u => { u.groups = u.groups.filter(g => g.toLowerCase() !== gone.name.toLowerCase()); });
+        T.store.save();
+        return [[`✔ Group '${gone.name}' removed.`, "t-ok"]];
+      },
+      "get-adgroupmember"(p) {
+        const id = p.named.identity || p.positional[0];
+        const ad = T.store.data.ad;
+        const g = id && ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!g) return [["Usage: Get-ADGroupMember -Identity <group>", "t-err"]];
+        if (!g.members.length) return [`(group '${g.name}' has no members)`];
+        return ["Name", "----", ...g.members];
+      },
+      "add-adgroupmember"(p) {
+        const id = p.named.identity;
+        const ad = T.store.data.ad;
+        const g = id && ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!g) return [["Usage: Add-ADGroupMember -Identity <group> -Members <user,...>", "t-err"]];
+        const members = String(p.named.members || p.positional[0] || "").split(",").map(s => s.trim()).filter(Boolean);
+        if (!members.length) return [["Add-ADGroupMember: no member names supplied.", "t-err"]];
+        const added = [];
+        members.forEach(mn => {
+          const u = ad.users.find(x => x.name.toLowerCase() === mn.toLowerCase());
+          if (!u) return;
+          if (!g.members.some(x => x.toLowerCase() === u.name.toLowerCase())) { g.members.push(u.name); added.push(u.name); }
+          if (!u.groups.some(x => x.toLowerCase() === g.name.toLowerCase())) u.groups.push(g.name);
+        });
+        T.store.save();
+        return [[`✔ Added ${added.length ? added.join(", ") : "(none — check the user names)"} to '${g.name}'.`, "t-ok"]];
+      },
+      "remove-adgroupmember"(p) {
+        const id = p.named.identity;
+        const ad = T.store.data.ad;
+        const g = id && ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (!g) return [["Usage: Remove-ADGroupMember -Identity <group> -Members <user,...>", "t-err"]];
+        const members = String(p.named.members || p.positional[0] || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+        g.members = g.members.filter(m => !members.includes(m.toLowerCase()));
+        ad.users.forEach(u => { if (members.includes(u.name.toLowerCase())) u.groups = u.groups.filter(x => x.toLowerCase() !== g.name.toLowerCase()); });
+        T.store.save();
+        return [[`✔ Members removed from '${g.name}'.`, "t-ok"]];
+      },
+      "dcdiag"() {
+        const ad = T.store.data.ad;
+        const dc = ad.dc.split(".")[0];
+        return ["Directory Server Diagnosis", "",
+          "Performing initial setup:",
+          "   * Identified AD Forest.",
+          "      Done gathering initial info.", "",
+          "Doing initial required tests:",
+          `   Testing server: ${ad.site}\\${dc}`,
+          "      Starting test: Connectivity",
+          `         ......................... ${dc} passed test Connectivity`,
+          "      Starting test: Advertising",
+          `         ......................... ${dc} passed test Advertising`, "",
+          "All tests passed. (simulated)"];
+      },
     };
     return this._handlers;
   }

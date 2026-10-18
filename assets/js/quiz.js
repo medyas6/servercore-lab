@@ -83,6 +83,18 @@ const QUIZ_BANK = [
 { m:"ad", q:"Comment s'appelle le premier domaine créé dans une forêt ?",
   c:["Le domaine racine","Le domaine enfant","Le domaine feuille","Le domaine secondaire"], a:0,
   why:"Le premier domaine de la forêt est appelé domaine racine (root domain)." },
+{ m:"ad", q:"Dans la console ADUC, quelle est la différence entre les nœuds « Users »/« Computers » et une OU ?",
+  c:["Ce sont des conteneurs : on ne peut pas leur lier de GPO, contrairement aux OU","Ce sont des OU cachées","Ce sont des groupes de sécurité","Il n'y a aucune différence"], a:0,
+  why:"Users et Computers sont des conteneurs (CN=), pas des OU : impossible d'y lier une stratégie de groupe." },
+{ m:"ad", q:"Que contient par défaut l'OU « Domain Controllers » ?",
+  c:["Les comptes d'ordinateurs des contrôleurs de domaine","Tous les utilisateurs du domaine","Les stratégies de groupe","Les serveurs DNS uniquement"], a:0,
+  why:"L'OU Domain Controllers reçoit automatiquement les comptes des DC promus." },
+{ m:"ad", q:"Quelle commande PowerShell liste tous les utilisateurs du domaine ?",
+  c:["Get-ADUser -Filter *","Show-ADUsers -All","List-ADUser /all","Get-DomainUsers"], a:0,
+  why:"Get-ADUser -Filter * retourne tous les objets utilisateur du domaine." },
+{ m:"ad", q:"Que représente un nom distinctif (Distinguished Name) comme CN=student01,OU=IT,DC=lab,DC=local ?",
+  c:["Le chemin unique de l'objet dans l'annuaire","Le mot de passe de l'objet","L'adresse IP de l'objet","Le SID du domaine"], a:0,
+  why:"Le DN est le chemin LDAP unique : objet → OU → domaine." },
 
 /* ---------- 3. Objets Active Directory ---------- */
 { m:"ad-objets", efm:true, q:"Quelle commande crée un compte d'utilisateur dans une OU ?",

@@ -22,6 +22,35 @@ function defaultState() {
     reservations: [],
     options: {},
     exercises: {},
+    /* شجرة Active Directory: forest وحدة، containers/OUs، وles objets لداخل */
+    ad: {
+      forest: "lab.local",
+      domain: "lab.local",
+      dc: "DC01.lab.local",
+      site: "Default-First-Site-Name",
+      functionalLevel: "Windows Server 2016",
+      containers: [
+        { name: "Domain Controllers", type: "ou" },
+        { name: "Users", type: "container" },
+        { name: "Computers", type: "container" },
+        { name: "IT", type: "ou" },
+        { name: "HR", type: "ou" },
+        { name: "Students", type: "ou" },
+      ],
+      users: [
+        { name: "Administrator", container: "Users", enabled: true, groups: ["Domain Admins"] },
+        { name: "student01", container: "IT", enabled: true, groups: ["LabAdmins"] },
+      ],
+      computers: [
+        { name: "DC01", container: "Domain Controllers" },
+        { name: "PC-IT01", container: "IT" },
+        { name: "PC-HR01", container: "HR" },
+      ],
+      groups: [
+        { name: "Domain Admins", scope: "Global", container: "Users", members: ["Administrator"] },
+        { name: "LabAdmins", scope: "Global", container: "IT", members: ["student01"] },
+      ],
+    },
   };
 }
 
@@ -463,21 +492,144 @@ route("#/dns", () => `
   ${cmdCard("Get-DnsServerZone", "List hosted DNS zones.")}
   ${cmdCard("Resolve-DnsName -Name DC01.lab.local", "Test name resolution against the simulated DNS.")}`);
 
-/* ---------------- Active Directory ---------------- */
+/* ---------------- Active Directory: ADUC tree b7al console l7a9i9iya ---------------- */
+/* katbni DistinguishedName dyal object 7asab container li fih */
+function adDN(obj, ad) {
+  const cont = (ad.containers || []).find(c => c.name === obj.container);
+  const pre = cont && cont.type === "ou" ? "OU" : "CN";
+  return `CN=${obj.name},${pre}=${obj.container},DC=lab,DC=local`;
+}
+
+/* 7ala dyal chajara (chno m7loul / chno mselectionné) — ghir dyal session */
+const ADUC = {
+  expanded: { "d:lab.local": true },
+  selected: "d:lab.local",
+  toggle(id) {
+    if (this.expanded[id]) delete this.expanded[id]; else this.expanded[id] = true;
+    this.refresh();
+  },
+  select(id) { this.selected = id; this.refresh(); },
+  refresh() {
+    const root = document.getElementById("aduc-root");
+    if (root) root.innerHTML = aducInner(store.data.ad);
+  },
+};
+window.ADUC = ADUC;
+/* bach la forêt tban m7loula men lowel, b7al ADUC ملي kat7elha */
+(store.data.ad.containers || []).forEach(c => { ADUC.expanded["c:" + c.name] = true; });
+
+/* paneau details 3la 7asab node li tselectionna */
+function aducDetails(id, ad) {
+  const kind = id[0], name = id.slice(2);
+  const head = t => `<h2>${esc(t)}</h2>`;
+  if (kind === "d") {
+    const n = x => x.length;
+    return head("Domain — " + ad.domain) + kvTable([
+      ["Forest", ad.forest], ["Domain controller", ad.dc],
+      ["Site", ad.site], ["Functional level", ad.functionalLevel],
+      ["Organizational units", n(ad.containers.filter(c => c.type === "ou"))],
+      ["Containers", n(ad.containers.filter(c => c.type === "container"))],
+      ["Users", n(ad.users)], ["Computers", n(ad.computers)], ["Groups", n(ad.groups)],
+    ]) + `<p class="muted">Click any node in the tree to inspect it. Changes made with the AD cmdlets in the terminal appear here.</p>`;
+  }
+  if (kind === "c") {
+    const cont = ad.containers.find(c => c.name === name);
+    if (!cont) return head(name);
+    const objs = [...ad.users.filter(u => u.container === name), ...ad.computers.filter(o => o.container === name), ...ad.groups.filter(g => g.container === name)];
+    return head((cont.type === "ou" ? "Organizational Unit — " : "Container — ") + name) + kvTable([
+      ["Type", cont.type === "ou" ? "Organizational Unit" : "Container"],
+      ["Distinguished name", (cont.type === "ou" ? "OU=" : "CN=") + name + ",DC=lab,DC=local"],
+      ["Objects inside", objs.length ? objs.map(o => o.name).join(", ") : "(empty)"],
+    ]);
+  }
+  if (kind === "u") {
+    const u = ad.users.find(x => x.name === name);
+    if (!u) return head(name);
+    return head("User — " + u.name) + kvTable([
+      ["Distinguished name", adDN(u, ad)],
+      ["Account", u.enabled ? "Enabled" : "Disabled"],
+      ["Location", u.container],
+      ["Member of", u.groups.length ? u.groups.join(", ") : "(none)"],
+    ]);
+  }
+  if (kind === "m") {
+    const c = ad.computers.find(x => x.name === name);
+    if (!c) return head(name);
+    return head("Computer — " + c.name) + kvTable([
+      ["Distinguished name", adDN(c, ad)],
+      ["Location", c.container],
+      ["Operating system", c.name === "DC01" ? "Windows Server 2019 Standard" : "Windows 10 Pro (simulated)"],
+    ]);
+  }
+  if (kind === "g") {
+    const g = ad.groups.find(x => x.name === name);
+    if (!g) return head(name);
+    return head("Group — " + g.name) + kvTable([
+      ["Distinguished name", adDN(g, ad)],
+      ["Group scope", g.scope],
+      ["Location", g.container],
+      ["Members", g.members.length ? g.members.join(", ") : "(none)"],
+    ]);
+  }
+  return head("Active Directory");
+}
+
+/* chajara kamla: domain ← containers/OUs ← users/computers/groups */
+function aducInner(ad) {
+  ad = ad || store.data.ad;
+  const icons = { m: "🖥️", u: "👤", g: "👥" };
+  const contNodes = (ad.containers || []).map(c => {
+    const cid = "c:" + c.name;
+    const objs = [
+      ...ad.computers.filter(o => o.container === c.name).map(o => ({ k: "m", o })),
+      ...ad.users.filter(o => o.container === c.name).map(o => ({ k: "u", o })),
+      ...ad.groups.filter(o => o.container === c.name).map(o => ({ k: "g", o })),
+    ];
+    const objHTML = objs.length
+      ? objs.map(({ k, o }) => {
+          const oid = k + ":" + o.name;
+          const sel = ADUC.selected === oid ? " sel" : "";
+          const extra = k === "u" && !o.enabled ? ' <span class="badge">disabled</span>' : "";
+          return `<li><span class="tnode${sel}" onclick="ADUC.select('${oid}')"><span class="caret"></span>${icons[k]} ${esc(o.name)}${extra}</span></li>`;
+        }).join("")
+      : `<li><span class="tnode empty"><span class="caret"></span>(empty)</span></li>`;
+    const open = ADUC.expanded[cid];
+    const sel = ADUC.selected === cid ? " sel" : "";
+    const cicon = c.type === "ou" ? "📁" : "📦";
+    return `<li><span class="tnode${sel}"><span class="caret" onclick="ADUC.toggle('${cid}')">${open ? "▾" : "▸"}</span><span onclick="ADUC.select('${cid}')">${cicon} ${esc(c.name)}</span></span>${open ? `<ul class="tree">${objHTML}</ul>` : ""}</li>`;
+  }).join("");
+  const did = "d:" + ad.domain;
+  const dsel = ADUC.selected === did ? " sel" : "";
+  const dopen = ADUC.expanded[did];
+  return `<div class="aduc">
+    <div class="card aduc-tree"><h2>🌲 Forest</h2>
+      <ul class="tree"><li><span class="tnode${dsel}"><span class="caret" onclick="ADUC.toggle('${did}')">${dopen ? "▾" : "▸"}</span><span onclick="ADUC.select('${did}')">🌐 ${esc(ad.domain)}</span></span>${dopen ? `<ul class="tree">${contNodes}</ul>` : ""}</li></ul>
+    </div>
+    <div class="card aduc-detail">${aducDetails(ADUC.selected, ad)}</div>
+  </div>`;
+}
+
 route("#/active-directory", () => `
-  ${pageHead("Active Directory", "Manage the simulated lab.local domain: OUs, users, groups and computers.")}
-  <div class="grid grid-2">
-    <div class="card"><h2>Domain</h2>${kvTable([["Forest", "lab.local"], ["Domain controller", "DC01.lab.local"], ["Site", "Default-First-Site-Name"], ["Functional level", "Windows Server 2016"]])}</div>
-    <div class="card"><h2>Users</h2>${kvTable([["student01", "Enabled — member of LabAdmins"], ["Administrator", "Enabled — Domain Admins"]])}</div>
-  </div>
-  <h2>Organizational Units</h2>
-  ${dataTable(["Name", "Distinguished path"], SAMPLE.ous)}
+  ${pageHead("Active Directory", "Simulated lab.local domain with a real ADUC-style forest tree. Click nodes to inspect; manage everything from the terminal.")}
+  <div id="aduc-root">${aducInner(store.data.ad)}</div>
   <h2>Quick Commands</h2>
+  ${cmdCard("Get-ADForest", "Show the simulated forest.")}
+  ${cmdCard("Get-ADDomain", "Show the simulated domain.")}
+  ${cmdCard("Get-ADDomainController", "Show the domain controller.")}
+  ${cmdCard("Get-ADUser -Filter *", "List all domain users.")}
+  ${cmdCard("Get-ADUser -Identity 'student01'", "Show one user in detail.")}
+  ${cmdCard("New-ADUser -Name 'yassine' -Path 'OU=Students,DC=lab,DC=local'", "Create a user inside the Students OU.")}
+  ${cmdCard("Disable-ADAccount -Identity 'student01'", "Disable a user account.")}
+  ${cmdCard("Enable-ADAccount -Identity 'student01'", "Re-enable a user account.")}
+  ${cmdCard("Get-ADComputer -Filter *", "List all domain computers.")}
+  ${cmdCard("New-ADComputer -Name 'PC-ST01' -Path 'OU=Students,DC=lab,DC=local'", "Join a computer object to the domain.")}
+  ${cmdCard("Get-ADOrganizationalUnit -Filter *", "List all OUs and containers.")}
+  ${cmdCard("New-ADOrganizationalUnit -Name 'Compta'", "Create a new OU at the domain root.")}
+  ${cmdCard("Get-ADGroup -Filter *", "List all groups.")}
+  ${cmdCard("Get-ADGroupMember -Identity 'LabAdmins'", "List the members of a group.")}
+  ${cmdCard("New-ADGroup -Name 'ComptaGrp' -GroupScope Global", "Create a global security group.")}
+  ${cmdCard("Add-ADGroupMember -Identity 'LabAdmins' -Members 'yassine'", "Add a user to a group.")}
   ${cmdCard("Install-ADDSForest -DomainName 'lab.local' -InstallDns", "Create the lab.local forest on this server.")}
-  ${cmdCard("New-ADOrganizationalUnit -Name 'IT' -Path 'DC=lab,DC=local'", "Create an organizational unit.")}
-  ${cmdCard("New-ADUser -Name 'student01' -Enabled $true", "Create the standard lab user.")}
-  ${cmdCard("New-ADGroup -Name 'LabAdmins' -GroupScope Global", "Create a global security group.")}
-  ${cmdCard("Add-ADGroupMember -Identity 'LabAdmins' -Members 'student01'", "Add the user to the group.")}
   ${cmdCard("dcdiag", "Run domain controller diagnostics.")}`);
 
 /* ---------------- Group Policy ---------------- */
@@ -756,6 +908,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.2.0</span><span class="date">2026-10-18</span> — Active Directory goes full ADUC: a real forest tree (domain → OUs/containers → users, computers, groups) you can browse and click, plus ~25 working AD cmdlets in the terminal (Get/New/Set/Remove-ADUser, ADComputer, ADGroup, ADOrganizationalUnit, dcdiag…). 4 new ADUC quiz questions.</li>
       <li><span class="ver">v1.1.0</span><span class="date">2026-10-18</span> — New phosphor-green design, animated dashboard, QCM quiz (96 questions incl. real EFM ones), human About page. The site finally looks like I wanted.</li>
       <li><span class="ver">v1.0.1</span><span class="date">2026-10-18</span> — Fixed: terminal commands (rename, IP, DNS) now actually update the dashboard. Before that they just printed ✔ and changed nothing — my bad.</li>
       <li><span class="ver">v1.0.0</span><span class="date">2026-10-09</span> — First release: PowerShell simulator, DHCP/DNS/AD labs, 15 exercises, command reference.</li>
