@@ -422,3 +422,21 @@ input[type="file"] { font-size: 13px; color: var(--muted); }
   .dora-steps { grid-template-columns: repeat(2, 1fr); }
   .term-output { height: 380px; }
 }
+
+/* ---------- Quiz QCM ---------- */
+.quiz-mod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px; margin:10px 0; }
+.quiz-mod { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; cursor:pointer; }
+.quiz-mod input { accent-color: var(--accent); }
+.quiz-timer { height:8px; background:var(--border); border-radius:4px; overflow:hidden; margin:10px 0; }
+.quiz-timer > div { height:100%; background:var(--accent); border-radius:4px; transition:width 1s linear; }
+.quiz-timer.low > div { background:#e5484d; }
+.quiz-choice { display:block; width:100%; text-align:left; padding:12px 14px; margin:8px 0; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px; cursor:pointer; }
+.quiz-choice:hover:not(:disabled) { border-color:var(--accent); }
+.quiz-choice:disabled { cursor:default; opacity:0.85; }
+.quiz-choice.good { border-color:#2f9e44; background:rgba(47,158,68,.12); }
+.quiz-choice.bad { border-color:#e5484d; background:rgba(229,72,77,.12); }
+.quiz-why { border-left:3px solid var(--accent); padding:8px 12px; margin:12px 0; font-size:13px; color:var(--muted); background:rgba(127,127,127,.06); border-radius:0 8px 8px 0; }
+.quiz-why.efm { border-left-color:#f5a524; }
+.quiz-score { font-size:40px; font-weight:800; color:var(--accent); }
+.quiz-board { width:100%; border-collapse:collapse; font-size:13px; }
+.quiz-board td, .quiz-board th { padding:6px 8px; border-bottom:1px solid var(--border); text-align:left; }

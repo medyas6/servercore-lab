@@ -130,6 +130,7 @@ const NAV = [
   ["#/storage", "Storage", "&#128190;"],
   ["#/security", "Security", "&#128737;"],
   ["#/learning-lab", "Learning Lab", "&#127979;"],
+  ["#/quiz", "Quiz QCM", "&#10067;"],
   ["#/command-reference", "Command Reference", "&#128218;"],
   ["#/settings", "Settings", "&#9881;"],
   ["#/about", "About", "&#9432;"],
@@ -500,6 +501,12 @@ function updateProgress() {
     el.textContent = `Progress: ${n}/15 exercises`;
   }
 }
+
+/* ---------------- Quiz QCM ---------------- */
+route("#/quiz",
+  () => `${pageHead("Quiz QCM — M202", "QCM chronométré avec points : 96 questions du cours + questions théoriques de l'EFM officiel.")}<div id="quiz-mount"></div>`,
+  () => { QuizApp.mount(document.getElementById("quiz-mount")); }
+);
 
 route("#/learning-lab", () => {
   const n = Object.keys(store.data.exercises).length;
