@@ -11,6 +11,11 @@ function defaultState() {
     v: 1,
     roles: [],
     domain: "WORKGROUP",
+    hostname: "WINSRV-CORE",
+    ipAddress: "192.168.10.10",
+    prefixLength: "24",
+    gateway: "192.168.10.1",
+    dnsServer: "127.0.0.1",
     dhcp: { authorized: null },
     scopes: [],
     exclusions: [],
@@ -42,6 +47,15 @@ store.load();
 /* ---------------- helpers ---------------- */
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function prefixToMask(plen) {
+  const n = parseInt(plen, 10);
+  if (isNaN(n) || n < 0 || n > 32) return "255.255.255.0";
+  let mask = 0;
+  for (let i = 0; i < n; i++) mask |= (1 << (31 - i));
+  mask >>>= 0;
+  return [(mask >>> 24) & 255, (mask >>> 16) & 255, (mask >>> 8) & 255, mask & 255].join(".");
 }
 
 let toastTimer = null;
@@ -218,6 +232,19 @@ route("#/", () => {
     ? store.data.roles.map(r => `<span class="badge blue">${esc(r)}</span>`).join(" ")
     : `<span class="badge">No roles installed yet</span>`;
   const doneCount = Object.keys(store.data.exercises).length;
+  const d = store.data;
+  const serverRows = [
+    ["Hostname", d.hostname || "WINSRV-CORE"],
+    ["Operating System", "Windows Server 2019 Standard"],
+    ["Domain status", (d.domain || "WORKGROUP") === "WORKGROUP" ? "Workgroup" : d.domain],
+    ["IPv4 address", d.ipAddress || "192.168.10.10"],
+  ];
+  const netRows = [
+    ["Subnet mask", prefixToMask(d.prefixLength || "24")],
+    ["Default gateway", d.gateway || "192.168.10.1"],
+    ["DNS server", d.dnsServer || "127.0.0.1"],
+    ["Adapter", "Ethernet (ifIndex 12)"],
+  ];
   return `
   ${pageHead("MEDC ServerCore Lab Training — Dashboard", "Your simulated Windows Server 2019 lab. Install roles, run commands, and track your progress.")}
   <div class="card">
@@ -230,8 +257,8 @@ route("#/", () => {
     </div>
   </div>
   <div class="grid grid-3">
-    <div class="card"><h2>Server</h2>${kvTable(SAMPLE.server.slice(0, 4))}</div>
-    <div class="card"><h2>Network</h2>${kvTable(SAMPLE.server.slice(4))}</div>
+    <div class="card"><h2>Server</h2>${kvTable(serverRows)}</div>
+    <div class="card"><h2>Network</h2>${kvTable(netRows)}</div>
     <div class="card"><h2>Lab progress</h2>
       <div style="font-size:34px;font-weight:800;color:var(--accent)">${doneCount}<span style="font-size:16px;color:var(--muted)">/15</span></div>
       <div style="font-size:13px;color:var(--muted);margin:6px 0 12px">exercises completed</div>

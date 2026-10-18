@@ -306,12 +306,13 @@ class SimTerminal {
       "clear"() { T.clear(); return []; },
 
       "get-computerinfo"() {
+        const d = T.store.data;
         return [
-          "Hostname          : WINSRV-CORE",
+          "Hostname          : " + (d.hostname || "WINSRV-CORE"),
           "OS                : Windows Server 2019 Standard (simulated)",
-          "Domain            : " + (T.store.data.domain || "WORKGROUP"),
-          "IPv4              : 192.168.10.10",
-          "Roles installed   : " + (T.store.data.roles.join(", ") || "(none)"),
+          "Domain            : " + (d.domain || "WORKGROUP"),
+          "IPv4              : " + (d.ipAddress || "192.168.10.10"),
+          "Roles installed   : " + (d.roles.join(", ") || "(none)"),
         ];
       },
       "get-process"() {
@@ -471,21 +472,31 @@ class SimTerminal {
         const n = p.named.newname || p.positional[0];
         if (!n) return [["Usage: Rename-Computer -NewName <name> [-Restart]", "t-err"]];
         if (n.length > 15) return [[`Rename-Computer: '${n}' is longer than 15 characters.`, "t-err"]];
+        T.store.data.hostname = n;
+        T.store.save();
         return [[`✔ Computer renamed to '${n}'. A restart is required (simulated).`, "t-ok"]];
       },
       "new-netipaddress"(p) {
         const ip = p.named.ipaddress, plen = p.named.prefixlength || "24";
         if (ipToInt(ip) === null) return [[`New-NetIPAddress: '${ip}' is not a valid IPv4 address.`, "t-err"]];
+        T.store.data.ipAddress = ip;
+        T.store.data.prefixLength = plen;
+        if (p.named.defaultgateway) T.store.data.gateway = p.named.defaultgateway;
+        T.store.save();
         return [[`✔ IP address ${ip}/${plen} assigned to adapter '${p.named.interfacealias || "Ethernet"}'. (simulated)`, "t-ok"]];
       },
       "get-netipaddress"() {
+        const d = T.store.data;
+        const ip = d.ipAddress || "192.168.10.10", plen = d.prefixLength || "24";
         return [pad("InterfaceAlias", 16) + pad("IPAddress", 17) + "PrefixLength",
                 pad("", 16, "-") + " " + pad("", 15, "-") + " ------------",
-                pad("Ethernet", 16) + pad("192.168.10.10", 17) + "24"];
+                pad("Ethernet", 16) + pad(ip, 17) + plen];
       },
       "set-dnsclientserveraddress"(p) {
         const s = p.named.serveraddresses || p.positional[0];
         if (ipToInt(s) === null) return [[`Set-DnsClientServerAddress: '${s}' is not valid.`, "t-err"]];
+        T.store.data.dnsServer = s;
+        T.store.save();
         return [[`✔ Preferred DNS server set to ${s} on '${p.named.interfacealias || "Ethernet"}'. (simulated)`, "t-ok"]];
       },
       "get-netadapter"() {
