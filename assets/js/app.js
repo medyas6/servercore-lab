@@ -745,11 +745,13 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Why I built this</h2>
     <div class="human-note">
-      I'm Yassine. I kept forgetting PowerShell commands and exam theory, so instead of
-      re-reading the same PDF for the tenth time, I built the lab I wished existed: a
-      fake Windows Server where you can actually type commands, break things safely, and
-      quiz yourself like it's the real exam. If you're in my class — good luck on the
-      EFM, and beat my high score.
+      I'm Yassine. Here's what I realized: most students don't have a PC they can
+      actually practice on — and the ones who do, their machines are too weak for
+      VMs and heavy server setups. So I built the lab I wished existed: a Windows
+      Server simulator that runs entirely in your browser. Nothing to install, no
+      powerful PC needed — it even works from your phone. Type commands, break
+      things safely, and quiz yourself like it's the real exam. Good luck on the
+      EFM — and try to beat my high score.
     </div>
   </div>
   <div class="card"><h2>Changelog</h2>
