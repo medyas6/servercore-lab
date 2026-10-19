@@ -6,6 +6,12 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 19/10/2026 (v1.4.0)** — Router Lab goes full ZTE: the admin panel
+> now looks exactly like a real ZTE page (white theme, live clock, dark tab
+> bar), and the 3D router is white with 2 antennas, yellow LAN ports and a red
+> WPS button — like the real box. Also fixed the 3D view sometimes staying
+> black.
+>
 > **Update 19/10/2026 (v1.3.0)** — **Router Lab**: a simulated ZTE router with a
 > full admin panel (Home, Internet, Local Network, VoIP, Management & Diagnosis),
 > a diagnostics test zone (WAN / internet / DNS / DHCP / WiFi checks + ping test),

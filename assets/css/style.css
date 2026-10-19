@@ -723,96 +723,78 @@ ul.tree ul.tree { margin: 0; padding-left: 16px; margin-left: 8px; border-left: 
 .aduc-detail .muted { color: var(--muted); font-size: 13px; margin-top: 12px; }
 @media (max-width: 760px) { .aduc { grid-template-columns: 1fr; } }
 
+
 /* ============================================================
-   Router Lab — ZTE-style panel (zayed f v1.3.0)
+   Router Lab — ZTE bdeb (byed, kima la page l2asliya)
    ============================================================ */
-.btn.small { padding: 5px 12px; font-size: 12px; }
-.btn.green-btn { border-color: var(--accent-border); color: var(--accent); }
-.badge.yellow { color: #e8b93e; border-color: rgba(232, 185, 62, 0.45); background: rgba(232, 185, 62, 0.1); }
-.zin { background: #0d1117; border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; }
-.zin:focus { outline: none; border-color: var(--accent-border); }
-.zin:disabled { opacity: 0.45; }
-.zin.sm { width: 130px; }
-select.zin, select[data-rfield] { background: #0d1117; border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; }
-
-.rhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.rhead h2 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
-.scen-banner { background: rgba(232, 185, 62, 0.08); border: 1px solid rgba(232, 185, 62, 0.4); border-radius: 10px; padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
-
-.ztabs { display: flex; gap: 4px; background: #10151d; border: 1px solid var(--card-border); border-radius: 12px 12px 0 0; padding: 8px 8px 0; overflow-x: auto; }
-.ztab { background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; padding: 10px 16px; cursor: pointer; white-space: nowrap; }
-.ztab:hover { color: var(--text); }
-.ztab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.zpanel { background: #0d1219; border: 1px solid var(--card-border); border-top: none; border-radius: 0 0 12px 12px; padding: 22px; min-height: 420px; }
-.zpanel h3 { margin: 22px 0 12px; font-size: 15px; }
-.zpanel h3:first-child { margin-top: 0; }
-
-/* diagram bhal ZTE: WAN -> Firewall -> Router */
-.zdiagram { display: flex; align-items: center; justify-content: center; gap: 0; margin: 8px 0 24px; flex-wrap: wrap; }
-.znode { background: #11161e; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px 22px; text-align: center; font-size: 13px; min-width: 130px; }
-.znode b { display: block; margin-top: 6px; }
-.zglobe, .zshield, .zrouter { font-size: 30px; }
-.zlink { width: 70px; height: 3px; background: var(--card-border); position: relative; }
-.zlink.up { background: var(--accent); box-shadow: 0 0 8px rgba(61, 220, 132, 0.6); }
-.zlink.down { background: var(--red); box-shadow: 0 0 8px rgba(242, 85, 90, 0.6); }
-
+.zte { background: #fff; color: #222; border-radius: 12px; overflow: hidden; font-family: Arial, Helvetica, sans-serif; font-size: 13px; border: 1px solid #d5dbe2; }
+.ztop { display: flex; align-items: center; gap: 18px; padding: 10px 18px; background: #fff; border-bottom: 1px solid #e3e8ee; }
+.zte-logo { font-size: 30px; font-weight: 800; font-style: italic; color: #0067b1; letter-spacing: 1px; }
+.ztime { color: #555; font-size: 12px; }
+.zuser { margin-left: auto; display: flex; gap: 14px; align-items: center; font-size: 12px; color: #0067b1; }
+.zuser a { color: #0067b1; text-decoration: none; }
+.zuser a:hover { text-decoration: underline; }
+.ztabs { display: flex; background: linear-gradient(#3d3d3d, #161616); padding: 0 12px; }
+.ztab { background: none; border: none; color: #cfd4da; font-size: 13px; padding: 12px 22px; cursor: pointer; font-family: inherit; }
+.ztab:hover { color: #fff; }
+.ztab.on { background: #4d4d4d; color: #fff; box-shadow: inset 0 3px 0 #0067b1; }
+.zbody { padding: 18px; background: #fff; min-height: 420px; }
+/* diagram */
+.zdiagram { display: flex; align-items: center; justify-content: center; gap: 0; margin: 8px 0 22px; flex-wrap: wrap; }
+.zbox { background: #fff; border: 1px solid #b9c2cc; border-radius: 6px; padding: 16px 26px; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 13px; color: #333; font-family: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.zbox:hover { border-color: #0067b1; }
+.zbox.sm { padding: 10px 20px; }
+.zbox span { white-space: nowrap; }
+.zline { width: 64px; height: 3px; background: #1e90d6; }
+.zlink2 { background: none; border: none; color: #0067b1; cursor: pointer; font-size: 12px; font-family: inherit; padding: 0; }
+.zlink2:hover { text-decoration: underline; }
 /* device list */
-.zcols { display: grid; grid-template-columns: 200px 1fr; gap: 0; border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-.zdevmenu { background: #10151d; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-.zdevmenu-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 8px; }
-.zdev { background: none; border: none; border-left: 3px solid transparent; color: var(--muted); font: inherit; font-size: 13px; text-align: left; padding: 9px 10px; border-radius: 0 8px 8px 0; cursor: pointer; }
-.zdev:hover { color: var(--text); background: #161c26; }
-.zdev.active { color: var(--accent); border-left-color: var(--accent); background: #161c26; }
-.zdevtable { padding: 16px; }
-.zdevtable-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
-.ztable { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ztable th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--card-border); }
-.ztable td { padding: 9px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-.ztable tr.intruder td { color: #ff9a9e; }
-.mono { font-family: "JetBrains Mono", monospace; font-size: 12px; }
-
-.zchecks-mini { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.zchk { font-size: 12px; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--card-border); color: var(--muted); }
-.zchk.ok { color: var(--accent); border-color: var(--accent-border); }
-.zchk.warn { color: #e8b93e; border-color: rgba(232, 185, 62, 0.45); }
-.zchk.fail { color: var(--red); border-color: rgba(242, 85, 90, 0.5); }
-
-/* forms */
-.zform { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px 20px; }
-.zform label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
-.zform label .btn, .zform label .badge { align-self: flex-start; }
-.zform input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
-
-/* diagnostics */
-.zdiag { display: grid; gap: 10px; margin: 14px 0 6px; }
-.zcheck { display: flex; gap: 12px; align-items: flex-start; background: #11161e; border: 1px solid var(--card-border); border-left: 4px solid var(--muted); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
-.zcheck.ok { border-left-color: var(--accent); }
-.zcheck.warn { border-left-color: #e8b93e; }
-.zcheck.fail { border-left-color: var(--red); }
-.zcheck .zico { font-weight: 800; font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
-.zcheck.ok .zico { color: var(--accent); }
-.zcheck.warn .zico { color: #e8b93e; }
-.zcheck.fail .zico { color: var(--red); }
-.zfix { color: var(--accent); font-size: 12.5px; }
-.zping { display: flex; gap: 10px; margin-bottom: 10px; }
-.zterm { background: #05070a; border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--accent); min-height: 90px; white-space: pre-wrap; }
-
-/* scenarios */
-.zscens { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.zscen { background: #11161e; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; font-size: 13px; }
-.zscen.active { border-color: rgba(232, 185, 62, 0.5); }
-.zscen p { margin: 8px 0; }
-.scen-result { margin-top: 10px; }
-
+.zdevwrap { display: flex; gap: 0; border: 1px solid #cfd6de; border-radius: 6px; overflow: hidden; }
+.zdevlist { width: 210px; flex: 0 0 210px; background: #f4f6f9; border-right: 1px solid #cfd6de; }
+.zdevlist-h { padding: 12px; font-weight: bold; color: #444; border-bottom: 1px solid #dfe4ea; background: #eef1f5; }
+.zdevitem { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: none; border-bottom: 1px solid #e6ebf1; padding: 12px; cursor: pointer; font-size: 12.5px; color: #0067b1; font-family: inherit; text-align: left; }
+.zdevitem.on { background: #fff; border-left: 3px solid #0067b1; font-weight: bold; }
+.zdevtable { flex: 1; padding: 0; background: #fff; min-width: 0; }
+.zdevtable-h { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e6ebf1; font-weight: bold; color: #444; }
+/* tables */
+.ztable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ztable th { text-align: left; padding: 10px 16px; color: #555; font-weight: bold; border-bottom: 1px solid #dfe4ea; background: #fafbfc; }
+.ztable td { padding: 10px 16px; border-bottom: 1px solid #eef1f4; color: #333; }
+.ztable .mono { font-family: Consolas, monospace; }
+.zempty { text-align: center; color: #999; padding: 24px !important; }
+/* sections + forms */
+.zsec { border: 1px solid #cfd6de; border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
+.zsec-h { background: linear-gradient(#f2f6fa, #e2e9f1); padding: 10px 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #cfd6de; display: flex; align-items: center; gap: 10px; }
+.zsec-b { padding: 14px 16px; }
+.zrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.zrow label { width: 150px; flex: 0 0 150px; color: #555; }
+.zin2 { border: 1px solid #b9c2cc; border-radius: 4px; padding: 7px 10px; font-size: 13px; font-family: inherit; min-width: 200px; color: #222; background: #fff; }
+.zin2:focus { outline: none; border-color: #0067b1; }
+.zchk { display: inline-flex; align-items: center; gap: 6px; color: #333; cursor: pointer; }
+.zbtn { background: linear-gradient(#2f8fd0, #0067b1); color: #fff; border: 1px solid #005a9c; border-radius: 4px; padding: 7px 18px; font-size: 12.5px; cursor: pointer; font-family: inherit; }
+.zbtn:hover { background: linear-gradient(#3a9bd8, #0072c2); }
+.znote { color: #777; font-size: 12px; margin: 6px 0 0; }
+.zok { color: #1d9d57; font-weight: bold; }
+.zfail { color: #d33; font-weight: bold; }
+.zwarn { color: #c8901a; font-weight: bold; }
+.zbadge { font-size: 11px; padding: 3px 10px; border-radius: 10px; background: #eef1f4; }
+.zping { background: #0d1117; color: #7ee2a8; border-radius: 6px; padding: 12px; font-size: 12px; min-height: 60px; white-space: pre-wrap; font-family: Consolas, monospace; }
+.zscens { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.zscen { border: 1px solid #cfd6de; border-radius: 6px; padding: 12px; background: #fafbfc; }
+.zscen b { color: #2c3e50; }
+.zscen p { color: #666; font-size: 12px; margin: 6px 0 10px; }
+.zscen.on { background: #fff8e6; border-color: #e8b93e; }
 /* 3D */
-.r3d-mount { width: 100%; height: 400px; background: radial-gradient(ellipse at 50% 30%, #131a24 0%, #0a0d12 70%); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; }
-.r3d-mount canvas { display: block; }
-.r3d-info { margin-top: 10px; font-size: 13px; color: var(--muted); background: #11161e; border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px; min-height: 44px; }
-.r3d-info b { color: var(--text); }
-
+.z3d { border: 1px solid #cfd6de; border-radius: 6px; overflow: hidden; background: #0a0d12; }
+.r3d-mount { min-height: 400px; background: radial-gradient(ellipse at 50% 40%, #141a26 0%, #0a0d12 70%); }
+.r3d-mount canvas { display: block; width: 100%; }
+.r3d-info { padding: 10px 16px; color: #9fb3c8; font-size: 12.5px; border-top: 1px solid #1c2330; background: #0d1117; }
 @media (max-width: 760px) {
-  .zcols { grid-template-columns: 1fr; }
-  .zdevmenu { flex-direction: row; overflow-x: auto; }
-  .zdiagram { gap: 8px; }
-  .zlink { width: 30px; }
+  .zdevwrap { flex-direction: column; }
+  .zdevlist { width: 100%; flex: none; border-right: none; border-bottom: 1px solid #cfd6de; }
+  .zrow { flex-wrap: wrap; }
+  .zrow label { width: 100%; flex: none; }
+  .ztop { flex-wrap: wrap; }
+  .zline { width: 30px; }
+  .ztab { padding: 10px 12px; font-size: 12px; }
 }
