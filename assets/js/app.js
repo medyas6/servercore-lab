@@ -195,29 +195,40 @@ function pageHead(title, desc) {
 }
 
 /* ---------------- navigation ---------------- */
-const NAV = [
-  ["#/", "Dashboard", "&#8962;"],
-  ["#/terminal", "Terminal", "&#9000;"],
-  ["#/active-directory", "Active Directory", "&#128101;"],
-  ["#/roles", "Roles & Features", "&#128193;"],
-  ["#/dns", "DNS Server", "&#127760;"],
-  ["#/dhcp", "DHCP Server", "&#128268;"],
-  ["#/group-policy", "Group Policy", "&#128274;"],
-  ["#/networking", "Networking", "&#128759;"],
-  ["#/storage", "Storage", "&#128190;"],
-  ["#/security", "Security", "&#128737;"],
-  ["#/learning-lab", "Learning Lab", "&#127979;"],
-  ["#/quiz", "Quiz QCM", "&#10067;"],
-  ["#/router-lab", "Router Lab", "&#128225;"],
-  ["#/command-reference", "Command Reference", "&#128218;"],
-  ["#/settings", "Settings", "&#9881;"],
-  ["#/about", "About", "&#9432;"],
+const NAV_GROUPS = [
+  { title: null, items: [
+    ["#/", "Dashboard", "&#8962;"],
+    ["#/terminal", "Terminal", "&#9000;"],
+  ]},
+  { title: "Labs", items: [
+    ["#/active-directory", "Active Directory", "&#128101;"],
+    ["#/roles", "Roles & Features", "&#128193;"],
+    ["#/dns", "DNS Server", "&#127760;"],
+    ["#/dhcp", "DHCP Server", "&#128268;"],
+    ["#/group-policy", "Group Policy", "&#128274;"],
+    ["#/networking", "Networking", "&#128759;"],
+    ["#/storage", "Storage", "&#128190;"],
+    ["#/security", "Security", "&#128737;"],
+    ["#/router-lab", "Router Lab", "&#128225;"],
+  ]},
+  { title: "Révision", items: [
+    ["#/learning-lab", "Learning Lab", "&#127979;"],
+    ["#/quiz", "Quiz & Défis", "&#10067;"],
+  ]},
+  { title: "Ressources", items: [
+    ["#/command-reference", "Command Reference", "&#128218;"],
+    ["#/settings", "Settings", "&#9881;"],
+    ["#/about", "About", "&#9432;"],
+  ]},
 ];
 
 function renderNav() {
   const hash = location.hash || "#/";
-  document.getElementById("nav").innerHTML = NAV.map(([href, label, ico]) =>
-    `<a href="${href}" class="${href === hash ? "active" : ""}"><span class="ico">${ico}</span>${esc(label)}</a>`
+  document.getElementById("nav").innerHTML = NAV_GROUPS.map(g =>
+    (g.title ? `<div class="nav-group">${esc(g.title)}</div>` : "") +
+    g.items.map(([href, label, ico]) =>
+      `<a href="${href}" class="${href === hash ? "active" : ""}"><span class="ico">${ico}</span>${esc(label)}</a>`
+    ).join("")
   ).join("");
 }
 
@@ -925,6 +936,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.6.1</span><span class="date">2026-10-19</span> — Sidebar reorganized: grouped navigation (Principal / Labs / Révision / Ressources) with a more modern look.</li>
       <li><span class="ver">v1.6.0</span><span class="date">2026-10-19</span> — New: Défi Commandes — l'inverse du QCM : je te donne une mission en français, tu tapes la commande PowerShell. 54 missions (dont 18 tirées des EFM officiels Rabat + Casa), chrono, séries et record local.</li>
       <li><span class="ver">v1.5.1</span><span class="date">2026-10-19</span> — Removed the AI Assistant: the DeepSeek API needs paid credit, so it made no sense for a free site. My bad for the detour — the aurora background stays, now across the whole app.</li>
       <li><span class="ver">v1.5.0</span><span class="date">2026-10-19</span> — New: AI Assistant (DeepSeek) — a tutor specialized in networks + Windows Server administration. You enter your own DeepSeek API key (stored only in your browser); no key or offline = no AI, the rest works as usual. Plus: animated aurora background across the whole app.</li>

@@ -6,6 +6,9 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 19/10/2026 (v1.6.1)** — Sidebar reorganized into groups
+> (Principal / Labs / Révision / Ressources) with a more modern look.
+>
 > **Update 19/10/2026 (v1.6.0)** — **Défi Commandes**: the reverse of the
 > QCM — you get a mission in French, you type the PowerShell command.
 > 36 missions, timer, streaks, local leaderboard.
