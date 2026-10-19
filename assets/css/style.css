@@ -798,3 +798,71 @@ ul.tree ul.tree { margin: 0; padding-left: 16px; margin-left: 8px; border-left: 
   .zline { width: 30px; }
   .ztab { padding: 10px 12px; font-size: 12px; }
 }
+
+/* ============================================================
+   AI Assistant — chat DeepSeek
+   ============================================================ */
+.aipage { max-width: 800px; margin: 0 auto; }
+.aihead { display: flex; align-items: center; gap: 14px; }
+.aihead h2 { margin: 0; }
+.aistatus { font-size: 12px; padding: 4px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); }
+.aistatus.on { color: #3ddc84; border-color: rgba(61,220,132,0.4); }
+.aistatus.warn { color: #e8b93e; border-color: rgba(232,185,62,0.4); }
+.aistatus.off { color: #e05c5c; border-color: rgba(224,92,92,0.4); }
+.aicard { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; margin-top: 16px; }
+.aicard h3 { margin-top: 0; }
+.aisteps { color: var(--text); line-height: 1.9; }
+.airow { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.airow .zin { flex: 1; min-width: 180px; }
+.aimsgs { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; margin-top: 16px; height: 46vh; min-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.aimsg { display: flex; }
+.aimsg.user { justify-content: flex-end; }
+.aibubble { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); }
+.aimsg.user .aibubble { background: rgba(61,220,132,0.12); border-color: rgba(61,220,132,0.35); border-bottom-right-radius: 4px; }
+.aimsg.assistant .aibubble { border-bottom-left-radius: 4px; }
+.aimsg.err .aibubble { border-color: rgba(224,92,92,0.5); color: #f0a0a0; }
+.aiempty { text-align: center; color: var(--muted); margin: auto; line-height: 2; }
+.aicode { background: #0d1117; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px 12px; font-family: Consolas, monospace; font-size: 12.5px; overflow-x: auto; margin: 8px 0; }
+.aibubble code { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12.5px; }
+.aiinput { display: flex; gap: 10px; margin-top: 12px; }
+.aiinput .zin { flex: 1; }
+.aisettings { margin-top: 10px; display: flex; gap: 14px; }
+.aisetup { margin-top: 10px; }
+@media (max-width: 760px) { .aibubble { max-width: 94%; } }
+
+/* NEW badge f sidebar */
+.navbadge { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: #0a0d12; background: #3ddc84; border-radius: 8px; padding: 2px 8px; margin-left: auto; box-shadow: 0 0 10px rgba(61,220,132,0.45); }
+
+/* AI page — khlfiya mtharka (aurora, khfifa 3la GPU) */
+.aibg { position: relative; overflow: hidden; border-radius: 16px; padding: 26px 22px; background: #0b0f16; border: 1px solid var(--card-border); isolation: isolate; }
+.aibg::before, .aibg::after { content: ""; position: absolute; width: 480px; height: 480px; border-radius: 50%; filter: blur(100px); opacity: 0.16; pointer-events: none; z-index: 0; }
+.aibg::before { background: #3ddc84; top: -170px; left: -130px; animation: drift1 14s ease-in-out infinite alternate; }
+.aibg::after { background: #2f8fd0; bottom: -190px; right: -130px; animation: drift2 19s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(130px, 90px) scale(1.18); } }
+@keyframes drift2 { to { transform: translate(-110px, -80px) scale(1.12); } }
+.aibg .aipage { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .aibg::before, .aibg::after { animation: none; } }
+
+/* design 3asri l chat */
+.aihead h2 { font-family: "Space Grotesk", Inter, sans-serif; letter-spacing: 0.3px; }
+.aihead .navbadge { margin-left: 0; }
+.aimsgs { background: rgba(13,17,23,0.72); backdrop-filter: blur(6px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 32px rgba(0,0,0,0.35); }
+.aibubble { box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+.aimsg.user .aibubble { background: linear-gradient(135deg, rgba(61,220,132,0.16), rgba(61,220,132,0.07)); }
+.aiinput .zin { background: rgba(13,17,23,0.8); }
+.aiinput .zin:focus { border-color: rgba(61,220,132,0.55); box-shadow: 0 0 0 3px rgba(61,220,132,0.12); }
+.aistatus.on { animation: pulse-dot 2.4s ease-in-out infinite; }
+@keyframes pulse-dot { 50% { box-shadow: 0 0 12px rgba(61,220,132,0.5); } }
+@media (prefers-reduced-motion: reduce) { .aistatus.on { animation: none; } }
+
+/* Aurora mtharka l app kamla (kima preview dyal AI) */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(520px 520px at 12% 6%, rgba(61, 220, 132, 0.10), transparent 70%),
+    radial-gradient(620px 620px at 88% 94%, rgba(47, 143, 208, 0.10), transparent 70%);
+  filter: blur(70px);
+  animation: appdrift 24s ease-in-out infinite alternate;
+}
+@keyframes appdrift { to { transform: translate(5vw, 4vh) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
