@@ -371,7 +371,9 @@ const RouterLab = (() => {
   /* ============================================================
      ZTE view — bdeb kima la page dyal ZTE, background byed
      ============================================================ */
-  let curTab = "home", devFilter = "wlan", clockTimer = null;
+  let curTab = "home", devFilter = "wlan", clockTimer = null, mountNode = null;
+
+  function mount(el) { mountNode = el || null; render(); }
 
   const ZBLUE = "#0067b1";
   const ICO = {
@@ -536,7 +538,7 @@ const RouterLab = (() => {
     if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
     Router3D.destroy();
     const s = getState();
-    const mount = document.getElementById("zpanel");
+    const mount = mountNode || document.getElementById("zpanel") || document.getElementById("router-mount");
     if (!mount) return;
     const body = curTab === "home" ? zteHome(s) : curTab === "internet" ? zteInternet(s) :
       curTab === "lan" ? zteLan(s) : curTab === "voip" ? zteVoip(s) :
@@ -607,7 +609,7 @@ const RouterLab = (() => {
   }
 
   return {
-    render,
+    render, mount,
     _homeHtml() { return zteHome(getState()); }, /* preview static */
     getState, runChecks, overall, pingLines, SCENARIOS, changeWifiPassword, reset,
     defaultRouter, deepMerge, startScenario, scenarioDone, stopScenario,

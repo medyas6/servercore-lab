@@ -6,6 +6,9 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 19/10/2026 (v1.4.1)** — Fixed: the Router Lab page was showing
+> empty (the panel failed to mount). It renders correctly now.
+>
 > **Update 19/10/2026 (v1.4.0)** — Router Lab goes full ZTE: the admin panel
 > now looks exactly like a real ZTE page (white theme, live clock, dark tab
 > bar), and the 3D router is white with 2 antennas, yellow LAN ports and a red

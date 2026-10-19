@@ -915,6 +915,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.4.1</span><span class="date">2026-10-19</span> — Fixed: the Router Lab page was showing empty (the panel failed to mount). It renders correctly now — my bad.</li>
       <li><span class="ver">v1.4.0</span><span class="date">2026-10-19</span> — Router Lab goes full ZTE: the admin panel now looks exactly like a real ZTE page (white theme, live clock, dark tab bar), and the 3D router is white with 2 antennas, yellow LAN ports and a red WPS button — like the real box. Also fixed the 3D view sometimes staying black.</li>
       <li><span class="ver">v1.3.0</span><span class="date">2026-10-19</span> — Router Lab: a simulated ZTE router with a full admin panel (Home, Internet, Local Network, VoIP, Management & Diagnosis), a diagnostics test zone (WAN, internet, DNS, DHCP, WiFi checks + ping), break-it-fix-it scenarios, and an interactive 3D router with live LEDs and clickable ports.</li>
       <li><span class="ver">v1.2.0</span><span class="date">2026-10-18</span> — Active Directory goes full ADUC: a real forest tree (domain → OUs/containers → users, computers, groups) you can browse and click, plus ~25 working AD cmdlets in the terminal (Get/New/Set/Remove-ADUser, ADComputer, ADGroup, ADOrganizationalUnit, dcdiag…). 4 new ADUC quiz questions.</li>
