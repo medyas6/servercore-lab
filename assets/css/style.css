@@ -810,3 +810,29 @@ body::after {
 }
 @keyframes appdrift { to { transform: translate(5vw, 4vh) scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
+
+/* ============================================================
+   Quiz tabs + Defi Commandes
+   ============================================================ */
+.navbadge { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: #0a0d12; background: #3ddc84; border-radius: 8px; padding: 2px 8px; margin-left: 6px; box-shadow: 0 0 10px rgba(61,220,132,0.45); vertical-align: 2px; }
+.qtabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.qtab { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); border-radius: 10px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.qtab:hover { border-color: var(--accent-border); }
+.qtab.on { background: rgba(61,220,132,0.12); border-color: var(--accent-border); color: var(--accent); font-weight: 600; }
+.defi-task { background: rgba(61,220,132,0.05); border: 1px solid var(--card-border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 16px 18px; margin: 14px 0; }
+.defi-task p { font-size: 17px; margin: 8px 0 4px; font-weight: 600; }
+.defi-label { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+.defi-mod { font-size: 12px; color: var(--muted); }
+.defi-hint { background: rgba(232,185,62,0.08); border: 1px solid rgba(232,185,62,0.35); border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 13px; }
+.defi-input-row { display: flex; align-items: center; gap: 6px; background: #0d1117; border: 1px solid var(--card-border); border-radius: 10px; padding: 4px 6px 4px 16px; margin: 12px 0; }
+.defi-input-row:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px rgba(61,220,132,0.12); }
+.defi-ps { color: var(--accent); font-family: Consolas, monospace; font-weight: 700; font-size: 16px; }
+.defi-input { flex: 1; background: transparent; border: none; color: var(--text); font-family: Consolas, monospace; font-size: 15px; padding: 12px 8px; min-width: 0; }
+.defi-input:focus { outline: none; }
+.defi-ok { background: rgba(61,220,132,0.08); border: 1px solid rgba(61,220,132,0.4); border-radius: 10px; padding: 14px; margin-top: 12px; color: var(--text); }
+.defi-ko { background: rgba(224,92,92,0.07); border: 1px solid rgba(224,92,92,0.4); border-radius: 10px; padding: 14px; margin-top: 12px; color: var(--text); }
+.defi-ok code, .defi-ko code { background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 5px; font-family: Consolas, monospace; }
+.defi-review { border-bottom: 1px solid var(--card-border); padding: 10px 0; font-size: 14px; }
+.defi-review code { background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 5px; font-family: Consolas, monospace; font-size: 13px; }
+.defi-streak { color: #e8b93e; font-weight: 700; }
+@media (max-width: 760px) { .defi-task p { font-size: 15px; } .defi-input { font-size: 14px; } }

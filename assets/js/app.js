@@ -717,8 +717,18 @@ function updateProgress() {
 
 /* ---------------- Quiz QCM ---------------- */
 route("#/quiz",
-  () => `${pageHead("Quiz QCM — M202", "QCM chronométré avec points : 96 questions du cours + questions théoriques de l'EFM officiel.")}<div id="quiz-mount"></div>`,
-  () => { QuizApp.mount(document.getElementById("quiz-mount")); }
+  () => `${pageHead("Quiz & Défis — M202", "Révise à ta façon : QCM chronométré, ou missions PowerShell à taper au clavier.")}<div class="qtabs"><button class="qtab on" data-qtab="qcm">❓ QCM</button><button class="qtab" data-qtab="defi">⚡ Défi Commandes <span class="navbadge">NEW</span></button></div><div id="quiz-mount"></div>`,
+  () => {
+    const mount = document.getElementById("quiz-mount");
+    const tabs = [...document.querySelectorAll("[data-qtab]")];
+    const show = (which) => {
+      tabs.forEach(b => b.classList.toggle("on", b.dataset.qtab === which));
+      QuizApp.stopTimer(); QuizApp.unbindKeys(); DefiApp.stopAll();
+      if (which === "qcm") QuizApp.mount(mount); else DefiApp.mount(mount);
+    };
+    tabs.forEach(b => b.onclick = () => show(b.dataset.qtab));
+    show("qcm");
+  }
 );
 
 /* ---------------- Router Lab ---------------- */
@@ -915,6 +925,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.6.0</span><span class="date">2026-10-19</span> — New: Défi Commandes — l'inverse du QCM : je te donne une mission en français, tu tapes la commande PowerShell. 54 missions (dont 18 tirées des EFM officiels Rabat + Casa), chrono, séries et record local.</li>
       <li><span class="ver">v1.5.1</span><span class="date">2026-10-19</span> — Removed the AI Assistant: the DeepSeek API needs paid credit, so it made no sense for a free site. My bad for the detour — the aurora background stays, now across the whole app.</li>
       <li><span class="ver">v1.5.0</span><span class="date">2026-10-19</span> — New: AI Assistant (DeepSeek) — a tutor specialized in networks + Windows Server administration. You enter your own DeepSeek API key (stored only in your browser); no key or offline = no AI, the rest works as usual. Plus: animated aurora background across the whole app.</li>
       <li><span class="ver">v1.4.1</span><span class="date">2026-10-19</span> — Fixed: the Router Lab page was showing empty (the panel failed to mount). It renders correctly now — my bad.</li>
