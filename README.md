@@ -6,6 +6,12 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 19/10/2026 (v1.3.0)** — **Router Lab**: a simulated ZTE router with a
+> full admin panel (Home, Internet, Local Network, VoIP, Management & Diagnosis),
+> a diagnostics test zone (WAN / internet / DNS / DHCP / WiFi checks + ping test),
+> break-it-fix-it scenarios (slow WiFi, WiFi intruder, total breakdown), and an
+> interactive 3D router with live LEDs, clickable ports and WiFi signal waves.
+>
 > **Update 18/10/2026 (v1.2.0)** — Active Directory goes full ADUC: a real forest
 > tree (domain → OUs/containers → users, computers, groups) you can browse and
 > click, plus ~25 working AD cmdlets in the terminal and 4 new ADUC quiz
@@ -24,7 +30,7 @@ Created by **medyas** · © 2026 medyas. All rights reserved.
   filter, and a local top-10 leaderboard
 - **PowerShell simulator** — 80+ simulated cmdlets with `↑↓` history, `Tab` completion,
   `Get-Help`, `Get-Command`, and persistent command history
-- **15 lab sections** — Dashboard, Terminal, Quiz QCM, Active Directory, Roles & Features, DNS,
+- **15 lab sections** — Dashboard, Terminal, Quiz QCM, Router Lab, Active Directory, Roles & Features, DNS,
   DHCP, Group Policy, Networking, Storage, Security, Learning Lab, Command Reference,
   Settings, About
 - **Live lab state** — installing roles, authorizing DHCP, creating scopes… everything

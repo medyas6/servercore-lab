@@ -722,3 +722,97 @@ ul.tree ul.tree { margin: 0; padding-left: 16px; margin-left: 8px; border-left: 
 .caret { width: 18px; flex: 0 0 18px; display: inline-block; color: var(--muted); cursor: pointer; user-select: none; text-align: center; }
 .aduc-detail .muted { color: var(--muted); font-size: 13px; margin-top: 12px; }
 @media (max-width: 760px) { .aduc { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   Router Lab — ZTE-style panel (zayed f v1.3.0)
+   ============================================================ */
+.btn.small { padding: 5px 12px; font-size: 12px; }
+.btn.green-btn { border-color: var(--accent-border); color: var(--accent); }
+.badge.yellow { color: #e8b93e; border-color: rgba(232, 185, 62, 0.45); background: rgba(232, 185, 62, 0.1); }
+.zin { background: #0d1117; border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; }
+.zin:focus { outline: none; border-color: var(--accent-border); }
+.zin:disabled { opacity: 0.45; }
+.zin.sm { width: 130px; }
+select.zin, select[data-rfield] { background: #0d1117; border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; }
+
+.rhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.rhead h2 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+.scen-banner { background: rgba(232, 185, 62, 0.08); border: 1px solid rgba(232, 185, 62, 0.4); border-radius: 10px; padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+
+.ztabs { display: flex; gap: 4px; background: #10151d; border: 1px solid var(--card-border); border-radius: 12px 12px 0 0; padding: 8px 8px 0; overflow-x: auto; }
+.ztab { background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; padding: 10px 16px; cursor: pointer; white-space: nowrap; }
+.ztab:hover { color: var(--text); }
+.ztab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.zpanel { background: #0d1219; border: 1px solid var(--card-border); border-top: none; border-radius: 0 0 12px 12px; padding: 22px; min-height: 420px; }
+.zpanel h3 { margin: 22px 0 12px; font-size: 15px; }
+.zpanel h3:first-child { margin-top: 0; }
+
+/* diagram bhal ZTE: WAN -> Firewall -> Router */
+.zdiagram { display: flex; align-items: center; justify-content: center; gap: 0; margin: 8px 0 24px; flex-wrap: wrap; }
+.znode { background: #11161e; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px 22px; text-align: center; font-size: 13px; min-width: 130px; }
+.znode b { display: block; margin-top: 6px; }
+.zglobe, .zshield, .zrouter { font-size: 30px; }
+.zlink { width: 70px; height: 3px; background: var(--card-border); position: relative; }
+.zlink.up { background: var(--accent); box-shadow: 0 0 8px rgba(61, 220, 132, 0.6); }
+.zlink.down { background: var(--red); box-shadow: 0 0 8px rgba(242, 85, 90, 0.6); }
+
+/* device list */
+.zcols { display: grid; grid-template-columns: 200px 1fr; gap: 0; border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+.zdevmenu { background: #10151d; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.zdevmenu-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 8px; }
+.zdev { background: none; border: none; border-left: 3px solid transparent; color: var(--muted); font: inherit; font-size: 13px; text-align: left; padding: 9px 10px; border-radius: 0 8px 8px 0; cursor: pointer; }
+.zdev:hover { color: var(--text); background: #161c26; }
+.zdev.active { color: var(--accent); border-left-color: var(--accent); background: #161c26; }
+.zdevtable { padding: 16px; }
+.zdevtable-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
+.ztable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ztable th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--card-border); }
+.ztable td { padding: 9px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.ztable tr.intruder td { color: #ff9a9e; }
+.mono { font-family: "JetBrains Mono", monospace; font-size: 12px; }
+
+.zchecks-mini { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.zchk { font-size: 12px; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--card-border); color: var(--muted); }
+.zchk.ok { color: var(--accent); border-color: var(--accent-border); }
+.zchk.warn { color: #e8b93e; border-color: rgba(232, 185, 62, 0.45); }
+.zchk.fail { color: var(--red); border-color: rgba(242, 85, 90, 0.5); }
+
+/* forms */
+.zform { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px 20px; }
+.zform label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.zform label .btn, .zform label .badge { align-self: flex-start; }
+.zform input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* diagnostics */
+.zdiag { display: grid; gap: 10px; margin: 14px 0 6px; }
+.zcheck { display: flex; gap: 12px; align-items: flex-start; background: #11161e; border: 1px solid var(--card-border); border-left: 4px solid var(--muted); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+.zcheck.ok { border-left-color: var(--accent); }
+.zcheck.warn { border-left-color: #e8b93e; }
+.zcheck.fail { border-left-color: var(--red); }
+.zcheck .zico { font-weight: 800; font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
+.zcheck.ok .zico { color: var(--accent); }
+.zcheck.warn .zico { color: #e8b93e; }
+.zcheck.fail .zico { color: var(--red); }
+.zfix { color: var(--accent); font-size: 12.5px; }
+.zping { display: flex; gap: 10px; margin-bottom: 10px; }
+.zterm { background: #05070a; border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--accent); min-height: 90px; white-space: pre-wrap; }
+
+/* scenarios */
+.zscens { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.zscen { background: #11161e; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; font-size: 13px; }
+.zscen.active { border-color: rgba(232, 185, 62, 0.5); }
+.zscen p { margin: 8px 0; }
+.scen-result { margin-top: 10px; }
+
+/* 3D */
+.r3d-mount { width: 100%; height: 400px; background: radial-gradient(ellipse at 50% 30%, #131a24 0%, #0a0d12 70%); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; }
+.r3d-mount canvas { display: block; }
+.r3d-info { margin-top: 10px; font-size: 13px; color: var(--muted); background: #11161e; border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px; min-height: 44px; }
+.r3d-info b { color: var(--text); }
+
+@media (max-width: 760px) {
+  .zcols { grid-template-columns: 1fr; }
+  .zdevmenu { flex-direction: row; overflow-x: auto; }
+  .zdiagram { gap: 8px; }
+  .zlink { width: 30px; }
+}

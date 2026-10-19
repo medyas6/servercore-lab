@@ -208,6 +208,7 @@ const NAV = [
   ["#/security", "Security", "&#128737;"],
   ["#/learning-lab", "Learning Lab", "&#127979;"],
   ["#/quiz", "Quiz QCM", "&#10067;"],
+  ["#/router-lab", "Router Lab", "&#128225;"],
   ["#/command-reference", "Command Reference", "&#128218;"],
   ["#/settings", "Settings", "&#9881;"],
   ["#/about", "About", "&#9432;"],
@@ -720,6 +721,12 @@ route("#/quiz",
   () => { QuizApp.mount(document.getElementById("quiz-mount")); }
 );
 
+/* ---------------- Router Lab ---------------- */
+route("#/router-lab",
+  () => `${pageHead("Router Lab", "Un routeur ZTE simulé : panneau admin complet, diagnostics, et modèle 3D interactif.")}<div id="router-mount"></div>`,
+  () => { RouterLab.mount(document.getElementById("router-mount")); }
+);
+
 route("#/learning-lab", () => {
   const n = Object.keys(store.data.exercises).length;
   const items = EXERCISES.map((ex, i) => {
@@ -908,6 +915,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.3.0</span><span class="date">2026-10-19</span> — Router Lab: a simulated ZTE router with a full admin panel (Home, Internet, Local Network, VoIP, Management & Diagnosis), a diagnostics test zone (WAN, internet, DNS, DHCP, WiFi checks + ping), break-it-fix-it scenarios, and an interactive 3D router with live LEDs and clickable ports.</li>
       <li><span class="ver">v1.2.0</span><span class="date">2026-10-18</span> — Active Directory goes full ADUC: a real forest tree (domain → OUs/containers → users, computers, groups) you can browse and click, plus ~25 working AD cmdlets in the terminal (Get/New/Set/Remove-ADUser, ADComputer, ADGroup, ADOrganizationalUnit, dcdiag…). 4 new ADUC quiz questions.</li>
       <li><span class="ver">v1.1.0</span><span class="date">2026-10-18</span> — New phosphor-green design, animated dashboard, QCM quiz (96 questions incl. real EFM ones), human About page. The site finally looks like I wanted.</li>
       <li><span class="ver">v1.0.1</span><span class="date">2026-10-18</span> — Fixed: terminal commands (rename, IP, DNS) now actually update the dashboard. Before that they just printed ✔ and changed nothing — my bad.</li>
