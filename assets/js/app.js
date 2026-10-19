@@ -196,7 +196,6 @@ function pageHead(title, desc) {
 
 /* ---------------- navigation ---------------- */
 const NAV = [
-  ["#/ai-assistant", "AI Assistant", "&#129302;", "NEW"],
   ["#/", "Dashboard", "&#8962;"],
   ["#/terminal", "Terminal", "&#9000;"],
   ["#/active-directory", "Active Directory", "&#128101;"],
@@ -217,8 +216,8 @@ const NAV = [
 
 function renderNav() {
   const hash = location.hash || "#/";
-  document.getElementById("nav").innerHTML = NAV.map(([href, label, ico, badge]) =>
-    `<a href="${href}" class="${href === hash ? "active" : ""}"><span class="ico">${ico}</span>${esc(label)}${badge ? `<span class="navbadge">${esc(badge)}</span>` : ""}</a>`
+  document.getElementById("nav").innerHTML = NAV.map(([href, label, ico]) =>
+    `<a href="${href}" class="${href === hash ? "active" : ""}"><span class="ico">${ico}</span>${esc(label)}</a>`
   ).join("");
 }
 
@@ -723,11 +722,6 @@ route("#/quiz",
 );
 
 /* ---------------- Router Lab ---------------- */
-route("#/ai-assistant",
-  () => `<div id="ai-mount"></div>`,
-  () => { AIChat.mount(document.getElementById("ai-mount")); }
-);
-
 route("#/router-lab",
   () => `${pageHead("Router Lab", "Un routeur ZTE simulé : panneau admin complet, diagnostics, et modèle 3D interactif.")}<div id="router-mount"></div>`,
   () => { RouterLab.mount(document.getElementById("router-mount")); }
@@ -921,6 +915,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.5.1</span><span class="date">2026-10-19</span> — Removed the AI Assistant: the DeepSeek API needs paid credit, so it made no sense for a free site. My bad for the detour — the aurora background stays, now across the whole app.</li>
       <li><span class="ver">v1.5.0</span><span class="date">2026-10-19</span> — New: AI Assistant (DeepSeek) — a tutor specialized in networks + Windows Server administration. You enter your own DeepSeek API key (stored only in your browser); no key or offline = no AI, the rest works as usual. Plus: animated aurora background across the whole app.</li>
       <li><span class="ver">v1.4.1</span><span class="date">2026-10-19</span> — Fixed: the Router Lab page was showing empty (the panel failed to mount). It renders correctly now — my bad.</li>
       <li><span class="ver">v1.4.0</span><span class="date">2026-10-19</span> — Router Lab goes full ZTE: the admin panel now looks exactly like a real ZTE page (white theme, live clock, dark tab bar), and the 3D router is white with 2 antennas, yellow LAN ports and a red WPS button — like the real box. Also fixed the 3D view sometimes staying black.</li>

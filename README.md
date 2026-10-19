@@ -6,10 +6,9 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
-> **Update 19/10/2026 (v1.5.0)** — **AI Assistant**: a DeepSeek-powered tutor
-> specialized in networks + Windows Server administration. Bring your own API
-> key (stored only in your browser); offline users simply don't get AI answers.
-> Plus an animated aurora background across the whole app.
+> **Update 19/10/2026 (v1.5.1)** — Removed the AI Assistant (the DeepSeek API
+> needs paid credit — bad idea for a free site). Kept the best part: the
+> animated aurora background, now across the whole app.
 >
 > **Update 19/10/2026 (v1.4.1)** — Fixed: the Router Lab page was showing
 > empty (the panel failed to mount). It renders correctly now.
