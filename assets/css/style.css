@@ -918,3 +918,71 @@ body::after {
   border-color: rgba(34, 211, 238, 0.35);
   box-shadow: var(--shadow), 0 0 44px rgba(139, 92, 246, 0.18);
 }
+
+/* ============================================================
+   NEBULA v1.7.1 — match mockup exactly (fix v1.7.0 muted look)
+   Mockup: bright nebula right side, glass cards, gradient top
+   line, glowing sidebar mark, gradient buttons. Same selectors,
+   same labs, same terminal — only colours/glass/gradients change.
+   ============================================================ */
+body {
+  background:
+    radial-gradient(1000px 560px at 12% -10%, rgba(139, 92, 246, 0.55), transparent 60%),
+    radial-gradient(900px 560px at 92% 18%, rgba(34, 211, 238, 0.48), transparent 62%),
+    radial-gradient(800px 600px at 50% 110%, rgba(232, 121, 249, 0.38), transparent 60%),
+    #04060f;
+}
+body::after { opacity: 0.7; }
+#sidebar {
+  background: rgba(8, 15, 35, 0.78);
+  border-right: 1px solid rgba(34, 211, 238, 0.30);
+  backdrop-filter: blur(10px);
+}
+.brand-mark { position: relative; }
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e879f9;
+  box-shadow: 0 0 12px #e879f9;
+}
+#nav a.active {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.22), rgba(139, 92, 246, 0.20));
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.22);
+}
+.hero {
+  background:
+    radial-gradient(600px 240px at 92% 0%, rgba(34, 211, 238, 0.28), transparent 65%),
+    radial-gradient(500px 220px at 8% 100%, rgba(232, 121, 249, 0.22), transparent 65%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  border-color: rgba(139, 92, 246, 0.55);
+}
+.card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #22d3ee, #8b5cf6, #e879f9);
+}
+.btn.primary {
+  background: linear-gradient(90deg, #22d3ee, #e879f9);
+  box-shadow: 0 8px 24px rgba(232, 121, 249, 0.35);
+}
+.term {
+  background: rgba(4, 12, 28, 0.88);
+  border-color: rgba(34, 211, 238, 0.40);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(139, 92, 246, 0.20);
+}

@@ -6,6 +6,8 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 26/10/2026 (v1.7.1)** — Nebula, exact mockup match: brighter nebula, glass cards with gradient top line, glowing sidebar mark.
+>
 > **Update 26/10/2026 (v1.7.0)** — Nebula redesign: galaxy colours, holographic sidebar, gradient hero, glowing terminal. Same labs and terminal, CSS-only, no heavy 3D.
 >
 > **Update 19/10/2026 (v1.6.1)** — Sidebar reorganized into groups
