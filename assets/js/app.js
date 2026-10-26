@@ -936,6 +936,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.7.0</span><span class="date">2026-10-26</span> — Nebula redesign: galaxy colours (cyan / violet / magenta), holographic sidebar, gradient hero and glowing terminal — same labs, same terminal, no heavy 3D, so it stays fast on phones.</li>
       <li><span class="ver">v1.6.1</span><span class="date">2026-10-19</span> — Sidebar reorganized: grouped navigation (Principal / Labs / Révision / Ressources) with a more modern look.</li>
       <li><span class="ver">v1.6.0</span><span class="date">2026-10-19</span> — New: Défi Commandes — l'inverse du QCM : je te donne une mission en français, tu tapes la commande PowerShell. 54 missions (dont 18 tirées des EFM officiels Rabat + Casa), chrono, séries et record local.</li>
       <li><span class="ver">v1.5.1</span><span class="date">2026-10-19</span> — Removed the AI Assistant: the DeepSeek API needs paid credit, so it made no sense for a free site. My bad for the detour — the aurora background stays, now across the whole app.</li>
