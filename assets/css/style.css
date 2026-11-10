@@ -394,14 +394,20 @@ pre.code {
 }
 .term-output {
   height: 460px;
-  overflow-y: auto;
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.6;
+  text-shadow: 0 0 6px rgba(34, 211, 238, 0.12);
+}
+.term-transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
   white-space: pre-wrap;
   word-break: break-word;
-  text-shadow: 0 0 6px rgba(34, 211, 238, 0.12);
 }
 .term-output .t-prompt { color: var(--accent); font-weight: 700; }
 .term-output .t-err { color: var(--red); }
@@ -962,10 +968,18 @@ body::after { opacity: 0.7; }
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(139, 92, 246, 0.20);
 }
 
-/* ---------- Terminal v1.7.5: input at the bottom, like real PowerShell ---------- */
-.term-output .term-input-line {
+/* ---------- Terminal v1.7.6: input pinned to the bottom of the pane ---------- */
+.term-output > .term-input-line {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--card-border);
+  background: rgba(34, 211, 238, 0.06);
 }
-.term-output .term-input-line #term-input { flex: 1; font-weight: 600; }
+.term-output .term-input-line #term-input { flex: 1; min-width: 0; font-weight: 600; }
+/* echo lines li mchaw l transcript: bla l-bar dyal input line l7ayya */
+.term-transcript .term-input-line { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 480px) {
+  .term-output { font-size: 12px; }
+}

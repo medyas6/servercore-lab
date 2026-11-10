@@ -936,6 +936,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.7.6</span><span class="date">2026-11-10</span> — Terminal input now pinned to the bottom of the pane from the first load (transcript scrolls above it), like real PowerShell. Also: "Did you mean" only suggests close matches (no more 'cls' for 'nnn'), banner version removed to avoid confusion, shorter input placeholder for phones.</li>
       <li><span class="ver">v1.7.5</span><span class="date">2026-11-10</span> — Terminal like real PowerShell: the top input row is gone — you type on the prompt line at the bottom, below the last result. Each command freezes as its echo line, then a new prompt line appears below the output. Tab completion unchanged.</li>
       <li><span class="ver">v1.7.4</span><span class="date">2026-11-10</span> — Terminal like real PowerShell: after each command, a fresh prompt line appears below the result, with a blinking cursor — click it to type. Input stays on top, Tab completion unchanged.</li>
       <li><span class="ver">v1.7.3</span><span class="date">2026-11-10</span> — Removed the suggestion pills under the terminal input. Tab still completes commands and -parameters inline, like real PowerShell, with no pop-up list.</li>

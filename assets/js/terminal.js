@@ -91,12 +91,14 @@ class SimTerminal {
   }
 
   build() {
-    // input ma b9ach lfo9: kay3ich t7t f output, b7al PowerShell l7a9i9i —
-    // prompt line li t7t hiya li katkteb fiha, w men ba3d kola command
-    // kaytzad prompt+input jdid t7t resultat.
+    // input ma b9ach lfo9: kay3ich t7t fixe f terminal, b7al PowerShell l7a9i9i —
+    // transcript (banner + output) kay-scroller lfo9, w prompt line li katkteb
+    // fiha dayman las9a l t7t dyal pane, 7ta ملي terminal khawi.
     this.root.innerHTML = `
       <div class="term">
-        <div class="term-output" id="term-output" aria-label="Terminal output"></div>
+        <div class="term-output" id="term-output" aria-label="Terminal output">
+          <div class="term-transcript" id="term-transcript"></div>
+        </div>
       </div>
       <div class="btn-row">
         <button class="btn" id="term-copy">Copy last output</button>
@@ -104,12 +106,13 @@ class SimTerminal {
       </div>
       <div class="term-hint">Enter to run &middot; &uarr;&darr; history &middot; Tab completes commands and -parameters &middot; type - then Tab</div>`;
     this.out = this.root.querySelector("#term-output");
+    this.transcript = this.root.querySelector("#term-transcript");
     this.input = document.createElement("input");
     this.input.id = "term-input";
     this.input.autocomplete = "off";
     this.input.spellcheck = false;
     this.input.setAttribute("aria-label", "PowerShell command input");
-    this.input.placeholder = "Type a command...  Tab completes commands and -parameters";
+    this.input.placeholder = "Type a command...";
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
     // klik f ay blassa f terminal tay7et focus f input li t7t
@@ -135,13 +138,13 @@ class SimTerminal {
     this.lastOutput = plain;
     // insertAdjacentHTML, machi innerHTML += : innerHTML tay3awd ybni ga3
     // children men jdid, w input li 3aych t7t f output kan ghadi yt7yed
-    this.out.insertAdjacentHTML("beforeend", html + "\n");
-    this.out.scrollTop = this.out.scrollHeight;
+    this.transcript.insertAdjacentHTML("beforeend", html + "\n");
+    this.transcript.scrollTop = this.transcript.scrollHeight;
   }
 
   printBanner() {
     this.print([
-      ["MEDC ServerCore Lab Training — PowerShell Simulator v1.0.0", "t-dim"],
+      ["MEDC ServerCore Lab Training — PowerShell Simulator", "t-dim"],
       ["Created by medyas. © 2026 medyas. All rights reserved.", "t-dim"],
       ["Type 'help' for a quick start, 'Get-Command' to list supported commands.", "t-dim"],
       ["⚠ Commands are simulated and do not execute on a real operating system.", "t-err"],
@@ -150,7 +153,8 @@ class SimTerminal {
     this.lastOutput = "";
   }
 
-  /* prompt+input jdid t7t, b7al PowerShell: hadi hiya line li katkteb fiha */
+  /* prompt+input jdid t7t, b7al PowerShell: hadi hiya line li katkteb fiha.
+     las9a l t7t dyal pane (flex column: transcript lfo9, input line t7t). */
   appendInputLine() {
     const div = document.createElement("div");
     div.className = "term-input-line";
@@ -160,22 +164,24 @@ class SimTerminal {
     div.appendChild(prompt);
     div.appendChild(this.input);
     this.out.appendChild(div);
-    this.out.scrollTop = this.out.scrollHeight;
+    this.transcript.scrollTop = this.transcript.scrollHeight;
     this.input.focus();
   }
 
-  /* men ba3d Enter: line li ktebti fiha katwli texte fixe (echo dyal command),
-     w input kaymchi l line jdida t7t */
+  /* men ba3d Enter: line li ktebti fiha katwli texte fixe (echo dyal command)
+     w katmchi l transcript, w input kaymchi l line jdida t7t fixe */
   freezeInputLine(text) {
     const lineDiv = this.input.parentElement;
     if (!lineDiv) return;
     const span = document.createElement("span");
     span.textContent = text ? " " + text : "";
     lineDiv.replaceChild(span, this.input);
+    this.transcript.appendChild(lineDiv);
+    this.transcript.scrollTop = this.transcript.scrollHeight;
   }
 
   clear() {
-    this.out.innerHTML = "";
+    this.transcript.innerHTML = "";
     this.printBanner();
     this.appendInputLine();
   }
@@ -247,7 +253,8 @@ class SimTerminal {
       return d[y.length];
     };
     list.forEach(w => { const dd = dist(a, String(w).toLowerCase()); if (dd < bestD) { bestD = dd; best = w; } });
-    return bestD <= 3 ? best : null;
+    // <= 2 bach suggestion tb9a 9riba bss7: "nnn" ma 3ndha 3ala9a b "cls" (distance 3)
+    return bestD <= 2 ? best : null;
   }
   completionMatches() {
     const val = this.input.value;
