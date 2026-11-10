@@ -445,7 +445,8 @@ pre.code {
   font-size: 13px; font-weight: 700; flex-shrink: 0;
   font-family: var(--mono);
 }
-.ex-head .num.done { background: rgba(34, 211, 238, 0.18); color: var(--accent); }
+/* done = vert (v1.7.7): ملي كتكوشي exercice بلي عرفتيه، كيبان بلخضر باش يبان مزيان */
+.ex-head .num.done { background: rgba(34, 197, 94, 0.20); color: #4ade80; border-color: rgba(74, 222, 128, 0.55); }
 .ex-head .title { flex: 1; font-weight: 600; font-size: 14.5px; }
 .ex-body { display: none; padding: 0 18px 18px; border-top: 1px solid var(--card-border); }
 .exercise.open .ex-body { display: block; }
@@ -453,7 +454,7 @@ pre.code {
 .step { background: var(--bg-soft); border: 1px solid var(--card-border); border-radius: 10px; padding: 13px 15px; margin: 10px 0; }
 .step .step-desc { font-size: 13px; color: var(--muted); margin: 8px 0 4px; line-height: 1.6; }
 .check-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; cursor: pointer; }
-.check-row input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+.check-row input { width: 17px; height: 17px; accent-color: #22c55e; cursor: pointer; }
 .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 14px 0 4px; font-weight: 700; font-family: var(--mono); }
 .label:first-child { margin-top: 12px; }
 
@@ -499,8 +500,8 @@ pre.code {
 }
 .dora-step.active { border-color: var(--accent-border); box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25), 0 0 24px rgba(34, 211, 238, 0.12); transform: translateY(-2px); }
 .dora-step.active .letter { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.dora-step.done { border-color: rgba(34, 211, 238, 0.4); }
-.dora-step.done .letter { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
+.dora-step.done { border-color: rgba(74, 222, 128, 0.55); }
+.dora-step.done .letter { background: rgba(34, 197, 94, 0.18); color: #4ade80; border-color: rgba(74, 222, 128, 0.55); }
 .dora-step .sname { font-weight: 700; font-size: 13px; }
 .dora-step .sdesc { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
 .dora-log {

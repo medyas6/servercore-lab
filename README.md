@@ -6,6 +6,8 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 10/11/2026 (v1.7.7)** — Completed exercises show green; quiz modules start unchecked, you pick them yourself.
+>
 > **Update 10/11/2026 (v1.7.6)** — Terminal input pinned to the bottom of the pane from the first load; "Did you mean" only for close matches; banner version removed.
 >
 > **Update 10/11/2026 (v1.7.5)** — The top input row is gone: you type on the prompt line at the bottom, below the last result, like real PowerShell.

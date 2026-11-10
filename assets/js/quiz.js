@@ -401,7 +401,7 @@ const QuizApp = {
       <div class="quiz-mod-grid">
         ${QUIZ_MODULES.map(m => {
           const n = QUIZ_BANK.filter(q => q.m === m.id).length;
-          return `<label class="quiz-mod"><input type="checkbox" data-mod="${m.id}" checked> ${esc(m.name)} <span style="color:var(--muted)">(${n})</span></label>`;
+          return `<label class="quiz-mod"><input type="checkbox" data-mod="${m.id}"> ${esc(m.name)} <span style="color:var(--muted)">(${n})</span></label>`;
         }).join("")}
       </div>
       <div class="btn-row" style="align-items:center">
