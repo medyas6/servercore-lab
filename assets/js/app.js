@@ -936,6 +936,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.7.2</span><span class="date">2026-11-10</span> — Terminal like real PowerShell: input on top, Tab completes commands and -parameters (cycling), live suggestions, and "Did you mean" for misspelled commands and parameters.</li>
       <li><span class="ver">v1.7.1</span><span class="date">2026-10-26</span> — Nebula, exact mockup match: brighter nebula background, glass cards with gradient top line, glowing sidebar mark, gradient buttons — same labs and terminal.</li>
       <li><span class="ver">v1.7.0</span><span class="date">2026-10-26</span> — Nebula redesign: galaxy colours (cyan / violet / magenta), holographic sidebar, gradient hero and glowing terminal — same labs, same terminal, no heavy 3D, so it stays fast on phones.</li>
       <li><span class="ver">v1.6.1</span><span class="date">2026-10-19</span> — Sidebar reorganized: grouped navigation (Principal / Labs / Révision / Ressources) with a more modern look.</li>

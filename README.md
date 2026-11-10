@@ -6,6 +6,8 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 10/11/2026 (v1.7.2)** — Terminal: input on top, Tab completes commands and -parameters, live suggestions, Did-you-mean for typos.
+>
 > **Update 26/10/2026 (v1.7.1)** — Nebula, exact mockup match: brighter nebula, glass cards with gradient top line, glowing sidebar mark.
 >
 > **Update 26/10/2026 (v1.7.0)** — Nebula redesign: galaxy colours, holographic sidebar, gradient hero, glowing terminal. Same labs and terminal, CSS-only, no heavy 3D.

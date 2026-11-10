@@ -92,24 +92,25 @@ class SimTerminal {
   build() {
     this.root.innerHTML = `
       <div class="term">
-        <div class="term-output" id="term-output" aria-label="Terminal output"></div>
-        <div class="term-suggest" id="term-suggest"></div>
-        <div class="term-input-row">
+        <div class="term-input-row term-input-top">
           <span class="t-prompt">PS C:\\Users\\Administrator&gt;</span>
           <input id="term-input" autocomplete="off" spellcheck="false"
-                 aria-label="PowerShell command input" placeholder="Type a command…">
+                 aria-label="PowerShell command input" placeholder="Type a command...  Tab completes commands and -parameters">
         </div>
+        <div class="term-suggest" id="term-suggest"></div>
+        <div class="term-output" id="term-output" aria-label="Terminal output"></div>
       </div>
       <div class="btn-row">
         <button class="btn" id="term-copy">Copy last output</button>
         <button class="btn" id="term-clear">Clear screen</button>
       </div>
-      <div class="term-hint">Enter to run &middot; &uarr;&darr; history &middot; Tab to complete</div>`;
+      <div class="term-hint">Enter to run &middot; &uarr;&darr; history &middot; Tab completes commands and -parameters &middot; type - then Tab</div>`;
     this.out = this.root.querySelector("#term-output");
     this.input = this.root.querySelector("#term-input");
     this.suggest = this.root.querySelector("#term-suggest");
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
+    this.input.addEventListener("input", () => this.liveSuggest());
     this.root.querySelector("#term-copy").addEventListener("click", () => {
       copyText(this.lastOutput || "(no output yet)");
     });
@@ -171,34 +172,117 @@ class SimTerminal {
       e.preventDefault();
       this.complete();
     } else {
+      this._tab = null;
       this.hideSuggest();
     }
   }
 
-  complete() {
+  paramsFor(cmdName) {
+    const found = COMMANDS.find(c => c.name.toLowerCase() === String(cmdName || "").toLowerCase());
+    if (!found || !found.syntax) return [];
+    const out = [];
+    const rest = found.syntax.split(" ").slice(1).join(" ");
+    const re = /-([A-Za-z][A-Za-z0-9]*)/g;
+    let m;
+    while ((m = re.exec(rest))) if (!out.includes(m[1])) out.push(m[1]);
+    return out;
+  }
+  paramValues(param) {
+    const map = {
+      interfacealias: ["'Ethernet'"],
+      ipaddress: ["192.168.10.10"],
+      prefixlength: ["24"],
+      defaultgateway: ["192.168.10.1"],
+      serveraddresses: ["192.168.10.10"],
+      dnsname: ["DC01.lab.local"],
+      zonename: ["lab.local"],
+      name: ["'Lab Clients'"],
+      computername: ["DC01.lab.local"],
+      domainname: ["lab.local"],
+      identity: ["student01"]
+    };
+    return map[String(param || "").toLowerCase()] || [];
+  }
+  closestWord(word, list) {
+    const a = String(word || "").toLowerCase();
+    let best = null, bestD = 99;
+    const dist = (x, y) => {
+      const d = [];
+      for (let j = 0; j <= y.length; j++) d[j] = j;
+      for (let i = 1; i <= x.length; i++) {
+        let prev = d[0]; d[0] = i;
+        for (let j = 1; j <= y.length; j++) {
+          const tmp = d[j];
+          const cost = x[i-1] === y[j-1] ? 0 : 1;
+          d[j] = Math.min(d[j] + 1, d[j-1] + 1, prev + cost);
+          prev = tmp;
+        }
+      }
+      return d[y.length];
+    };
+    list.forEach(w => { const dd = dist(a, String(w).toLowerCase()); if (dd < bestD) { bestD = dd; best = w; } });
+    return bestD <= 3 ? best : null;
+  }
+  completionMatches() {
     const val = this.input.value;
-    const m = val.match(/([^\s]*)$/);
-    const frag = (m ? m[1] : "").toLowerCase();
-    if (!frag) return;
-    const matches = this.allCommandNames().filter(n => n.toLowerCase().startsWith(frag));
-    if (matches.length === 1) {
-      this.input.value = val.slice(0, val.length - frag.length) + matches[0] + " ";
-      this.hideSuggest();
-    } else if (matches.length > 1) {
-      this.suggest.innerHTML = "";
-      matches.slice(0, 12).forEach(name => {
-        const b = document.createElement("button");
-        b.className = "suggest-pill";
-        b.textContent = name;
-        b.addEventListener("click", () => {
-          this.input.value = val.slice(0, val.length - frag.length) + name + " ";
-          this.hideSuggest();
-          this.input.focus();
-        });
-        this.suggest.appendChild(b);
-      });
-      this.suggest.classList.add("show");
+    const pos = this.input.selectionStart != null ? this.input.selectionStart : val.length;
+    const before = val.slice(0, pos);
+    const parts = before.split(" ");
+    const frag = before.endsWith(" ") ? "" : parts[parts.length - 1];
+    const tokens = before.trim() ? before.trim().split(" ").filter(t => t) : [];
+    if (!tokens.length) return null;
+    const cmd = tokens[0];
+    const prefix = before.slice(0, before.length - frag.length);
+    if (frag.startsWith("-")) {
+      const list = this.paramsFor(cmd).filter(n => ("-" + n).toLowerCase().startsWith(frag.toLowerCase())).map(n => "-" + n);
+      return { frag, list, prefix, kind: "param" };
     }
+    if (tokens.length === 1) {
+      const list = this.allCommandNames().filter(n => n.toLowerCase().startsWith(frag.toLowerCase()));
+      return { frag, list, prefix, kind: "command" };
+    }
+    const prevTok = frag ? tokens[tokens.length - 2] : tokens[tokens.length - 1];
+    if (prevTok && prevTok.startsWith("-")) {
+      const list = this.paramValues(prevTok.replace(/^-+/, "")).filter(v => v.toLowerCase().startsWith(frag.toLowerCase()));
+      return { frag, list, prefix, kind: "value" };
+    }
+    return null;
+  }
+  liveSuggest() {
+    const matches = this.completionMatches();
+    if (!matches || matches.list.length <= 1) { this.hideSuggest(); return; }
+    this.showSuggest(matches);
+  }
+  showSuggest(matches) {
+    this.suggest.innerHTML = "";
+    matches.list.slice(0, 12).forEach(name => {
+      const b = document.createElement("button");
+      b.className = "suggest-pill";
+      b.textContent = name;
+      b.addEventListener("click", () => {
+        this.input.value = matches.prefix + name + " ";
+        this._tab = null;
+        this.hideSuggest();
+        this.input.focus();
+      });
+      this.suggest.appendChild(b);
+    });
+    this.suggest.classList.add("show");
+  }
+  complete() {
+    const matches = this.completionMatches();
+    if (!matches || !matches.list.length) return;
+    const key = matches.kind + ":" + matches.frag.toLowerCase();
+    if (this._tab && this._tab.key === key) {
+      this._tab.idx = (this._tab.idx + 1) % matches.list.length;
+    } else {
+      this._tab = { key, idx: 0, list: matches.list, prefix: matches.prefix };
+    }
+    const name = this._tab.list[this._tab.idx];
+    this.input.value = matches.prefix + name + " ";
+    if (this.input.setSelectionRange) this.input.setSelectionRange(this.input.value.length, this.input.value.length);
+    if (matches.list.length > 1) this.showSuggest(matches);
+    else this.hideSuggest();
   }
 
   hideSuggest() { this.suggest.classList.remove("show"); }
@@ -218,7 +302,21 @@ class SimTerminal {
     this.pushHistory(line);
     const parsed = parseLine(line);
     if (!parsed) return;
+    const foundCmd = COMMANDS.find(c => c.name.toLowerCase() === parsed.name.toLowerCase());
+    if (foundCmd) {
+      const params = this.paramsFor(foundCmd.name).map(x => x.toLowerCase());
+      if (params.length) {
+        const bad = Object.keys(parsed.named).find(k => !params.includes(k));
+        if (bad) {
+          const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
+          this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to see its parameters."), "t-err"]]);
+          if (this.onStateChange) this.onStateChange();
+          return;
+        }
+      }
+    }
     const key = parsed.name.toLowerCase();
+
     const handler = this.handlers[key];
     let out;
     if (handler) {
@@ -232,7 +330,8 @@ class SimTerminal {
   }
 
   unknownError(name) {
-    return [[`The term '${name}' is not recognized as the name of a cmdlet, function, or supported simulated command. Type 'Get-Command' for a list, or open the Command Reference page.`, "t-err"]];
+    const sug = this.closestWord(name, this.allCommandNames());
+    return [[`The term '${name}' is not recognized as the name of a cmdlet, function, or supported simulated command.` + (sug ? ` Did you mean '${sug}'?` : '') + ` Type 'Get-Command' for a list, or open the Command Reference page.`, "t-err"]];
   }
 
   /* Fallback: use the command catalog's "expected" text as simulated output */

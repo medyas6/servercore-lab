@@ -986,3 +986,13 @@ body::after { opacity: 0.7; }
   border-color: rgba(34, 211, 238, 0.40);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(139, 92, 246, 0.20);
 }
+
+/* ---------- Terminal v1.7.2: input on top, like real PowerShell ---------- */
+.term-input-top {
+  border-top: none;
+  border-bottom: 1px solid var(--card-border);
+  background: rgba(34, 211, 238, 0.06);
+  border-radius: 14px 14px 0 0;
+}
+.term-input-top #term-input { font-weight: 600; }
+.term-suggest { border-top: none; border-bottom: 1px dashed var(--card-border); }
