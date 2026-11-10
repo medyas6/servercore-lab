@@ -110,7 +110,6 @@ class SimTerminal {
     this.suggest = this.root.querySelector("#term-suggest");
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
-    this.input.addEventListener("input", () => this.liveSuggest());
     this.root.querySelector("#term-copy").addEventListener("click", () => {
       copyText(this.lastOutput || "(no output yet)");
     });
@@ -248,27 +247,8 @@ class SimTerminal {
     }
     return null;
   }
-  liveSuggest() {
-    const matches = this.completionMatches();
-    if (!matches || matches.list.length <= 1) { this.hideSuggest(); return; }
-    this.showSuggest(matches);
-  }
-  showSuggest(matches) {
-    this.suggest.innerHTML = "";
-    matches.list.slice(0, 12).forEach(name => {
-      const b = document.createElement("button");
-      b.className = "suggest-pill";
-      b.textContent = name;
-      b.addEventListener("click", () => {
-        this.input.value = matches.prefix + name + " ";
-        this._tab = null;
-        this.hideSuggest();
-        this.input.focus();
-      });
-      this.suggest.appendChild(b);
-    });
-    this.suggest.classList.add("show");
-  }
+  liveSuggest() { this.hideSuggest(); }
+  showSuggest(matches) { this.hideSuggest(); }
   complete() {
     const matches = this.completionMatches();
     if (!matches || !matches.list.length) return;
@@ -281,8 +261,7 @@ class SimTerminal {
     const name = this._tab.list[this._tab.idx];
     this.input.value = matches.prefix + name + " ";
     if (this.input.setSelectionRange) this.input.setSelectionRange(this.input.value.length, this.input.value.length);
-    if (matches.list.length > 1) this.showSuggest(matches);
-    else this.hideSuggest();
+    this.hideSuggest();
   }
 
   hideSuggest() { this.suggest.classList.remove("show"); }
@@ -309,7 +288,7 @@ class SimTerminal {
         const bad = Object.keys(parsed.named).find(k => !params.includes(k));
         if (bad) {
           const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
-          this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to see its parameters."), "t-err"]]);
+          this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to complete it."), "t-err"]]);
           if (this.onStateChange) this.onStateChange();
           return;
         }
