@@ -110,6 +110,10 @@ class SimTerminal {
     this.suggest = this.root.querySelector("#term-suggest");
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
+    // klik 3la prompt line li t7t (fresh prompt) tay7et focus f input lfo9
+    this.out.addEventListener("click", (e) => {
+      if (e.target.closest(".term-prompt-line")) this.input.focus();
+    });
     this.root.querySelector("#term-copy").addEventListener("click", () => {
       copyText(this.lastOutput || "(no output yet)");
     });
@@ -143,6 +147,19 @@ class SimTerminal {
       ["", ""],
     ]);
     this.lastOutput = "";
+    this.printPrompt();
+  }
+
+  /* fresh prompt line t7t l-output, b7al PowerShell l7a9i9i: men ba3d
+     kola command kayban prompt jdid t7t resultat, m3a cursor kayblink.
+     klik 3lih tay7et focus f input lfo9 (delegation f build). */
+  printPrompt() {
+    const div = document.createElement("div");
+    div.className = "term-prompt-line";
+    div.title = "Click to type";
+    div.innerHTML = `<span class="t-prompt">PS C:\\Users\\Administrator&gt;</span> <span class="t-cursor" aria-hidden="true">▮</span>`;
+    this.out.appendChild(div);
+    this.out.scrollTop = this.out.scrollHeight;
   }
 
   clear() {
@@ -290,6 +307,7 @@ class SimTerminal {
           const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
           this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to complete it."), "t-err"]]);
           if (this.onStateChange) this.onStateChange();
+          this.printPrompt();
           return;
         }
       }
@@ -306,6 +324,8 @@ class SimTerminal {
     if (out && out.length) this.print(out);
     else this.lastOutput = "";
     if (this.onStateChange) this.onStateChange();
+    // cls/clear deja 3awdo banner + prompt, bla ma nzido wa7ed akhor
+    if (key !== "cls" && key !== "clear") this.printPrompt();
   }
 
   unknownError(name) {

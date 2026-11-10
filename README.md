@@ -6,6 +6,8 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 10/11/2026 (v1.7.4)** — After each command, a fresh PowerShell prompt line appears below the result, with a blinking cursor (click it to type). Input stays on top.
+>
 > **Update 10/11/2026 (v1.7.3)** — Removed the terminal suggestion pills; Tab completion stays inline.
 >
 > **Update 10/11/2026 (v1.7.2)** — Terminal: input on top, Tab completes commands and -parameters, live suggestions, Did-you-mean for typos.
