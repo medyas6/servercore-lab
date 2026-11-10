@@ -81,6 +81,7 @@ class SimTerminal {
     this.lastOutput = "";
     this.build();
     this.printBanner();
+    this.appendInputLine();
     // bach ykhdem "Test in Simulator"
     if (window.__pendingCommand) {
       const cmd = window.__pendingCommand;
@@ -90,14 +91,11 @@ class SimTerminal {
   }
 
   build() {
+    // input ma b9ach lfo9: kay3ich t7t f output, b7al PowerShell l7a9i9i —
+    // prompt line li t7t hiya li katkteb fiha, w men ba3d kola command
+    // kaytzad prompt+input jdid t7t resultat.
     this.root.innerHTML = `
       <div class="term">
-        <div class="term-input-row term-input-top">
-          <span class="t-prompt">PS C:\\Users\\Administrator&gt;</span>
-          <input id="term-input" autocomplete="off" spellcheck="false"
-                 aria-label="PowerShell command input" placeholder="Type a command...  Tab completes commands and -parameters">
-        </div>
-        <div class="term-suggest" id="term-suggest"></div>
         <div class="term-output" id="term-output" aria-label="Terminal output"></div>
       </div>
       <div class="btn-row">
@@ -106,19 +104,20 @@ class SimTerminal {
       </div>
       <div class="term-hint">Enter to run &middot; &uarr;&darr; history &middot; Tab completes commands and -parameters &middot; type - then Tab</div>`;
     this.out = this.root.querySelector("#term-output");
-    this.input = this.root.querySelector("#term-input");
-    this.suggest = this.root.querySelector("#term-suggest");
+    this.input = document.createElement("input");
+    this.input.id = "term-input";
+    this.input.autocomplete = "off";
+    this.input.spellcheck = false;
+    this.input.setAttribute("aria-label", "PowerShell command input");
+    this.input.placeholder = "Type a command...  Tab completes commands and -parameters";
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
-    // klik 3la prompt line li t7t (fresh prompt) tay7et focus f input lfo9
-    this.out.addEventListener("click", (e) => {
-      if (e.target.closest(".term-prompt-line")) this.input.focus();
-    });
+    // klik f ay blassa f terminal tay7et focus f input li t7t
+    this.out.addEventListener("click", () => this.input.focus());
     this.root.querySelector("#term-copy").addEventListener("click", () => {
       copyText(this.lastOutput || "(no output yet)");
     });
     this.root.querySelector("#term-clear").addEventListener("click", () => this.clear());
-    this.input.focus();
   }
 
   /* ---------- output ---------- */
@@ -134,7 +133,9 @@ class SimTerminal {
     }).join("\n");
     const plain = lines.map(l => Array.isArray(l) ? l[0] : l).join("\n");
     this.lastOutput = plain;
-    this.out.innerHTML += html + "\n";
+    // insertAdjacentHTML, machi innerHTML += : innerHTML tay3awd ybni ga3
+    // children men jdid, w input li 3aych t7t f output kan ghadi yt7yed
+    this.out.insertAdjacentHTML("beforeend", html + "\n");
     this.out.scrollTop = this.out.scrollHeight;
   }
 
@@ -147,24 +148,36 @@ class SimTerminal {
       ["", ""],
     ]);
     this.lastOutput = "";
-    this.printPrompt();
   }
 
-  /* fresh prompt line t7t l-output, b7al PowerShell l7a9i9i: men ba3d
-     kola command kayban prompt jdid t7t resultat, m3a cursor kayblink.
-     klik 3lih tay7et focus f input lfo9 (delegation f build). */
-  printPrompt() {
+  /* prompt+input jdid t7t, b7al PowerShell: hadi hiya line li katkteb fiha */
+  appendInputLine() {
     const div = document.createElement("div");
-    div.className = "term-prompt-line";
-    div.title = "Click to type";
-    div.innerHTML = `<span class="t-prompt">PS C:\\Users\\Administrator&gt;</span> <span class="t-cursor" aria-hidden="true">▮</span>`;
+    div.className = "term-input-line";
+    const prompt = document.createElement("span");
+    prompt.className = "t-prompt";
+    prompt.textContent = "PS C:\\Users\\Administrator>";
+    div.appendChild(prompt);
+    div.appendChild(this.input);
     this.out.appendChild(div);
     this.out.scrollTop = this.out.scrollHeight;
+    this.input.focus();
+  }
+
+  /* men ba3d Enter: line li ktebti fiha katwli texte fixe (echo dyal command),
+     w input kaymchi l line jdida t7t */
+  freezeInputLine(text) {
+    const lineDiv = this.input.parentElement;
+    if (!lineDiv) return;
+    const span = document.createElement("span");
+    span.textContent = text ? " " + text : "";
+    lineDiv.replaceChild(span, this.input);
   }
 
   clear() {
     this.out.innerHTML = "";
     this.printBanner();
+    this.appendInputLine();
   }
 
   /* ---------- input handling ---------- */
@@ -175,8 +188,6 @@ class SimTerminal {
   onKey(e) {
     if (e.key === "Enter") {
       const line = this.input.value;
-      this.input.value = "";
-      this.hideSuggest();
       this.execute(line);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -189,7 +200,6 @@ class SimTerminal {
       this.complete();
     } else {
       this._tab = null;
-      this.hideSuggest();
     }
   }
 
@@ -264,8 +274,6 @@ class SimTerminal {
     }
     return null;
   }
-  liveSuggest() { this.hideSuggest(); }
-  showSuggest(matches) { this.hideSuggest(); }
   complete() {
     const matches = this.completionMatches();
     if (!matches || !matches.list.length) return;
@@ -278,10 +286,7 @@ class SimTerminal {
     const name = this._tab.list[this._tab.idx];
     this.input.value = matches.prefix + name + " ";
     if (this.input.setSelectionRange) this.input.setSelectionRange(this.input.value.length, this.input.value.length);
-    this.hideSuggest();
   }
-
-  hideSuggest() { this.suggest.classList.remove("show"); }
 
   pushHistory(line) {
     if (!line.trim()) return;
@@ -293,11 +298,14 @@ class SimTerminal {
 
   /* ---------- execution ---------- */
   execute(line) {
-    if (!line.trim()) return;
-    this.print([[`PS C:\\Users\\Administrator> ${line.trim()}`, "t-prompt"]]);
+    const text = line.trim();
+    // line li ktebti fiha katwli echo fixe, w input kaymchi l line jdida t7t
+    this.freezeInputLine(text);
+    this.input.value = "";
+    if (!text) { this.appendInputLine(); return; }
     this.pushHistory(line);
     const parsed = parseLine(line);
-    if (!parsed) return;
+    if (!parsed) { this.appendInputLine(); return; }
     const foundCmd = COMMANDS.find(c => c.name.toLowerCase() === parsed.name.toLowerCase());
     if (foundCmd) {
       const params = this.paramsFor(foundCmd.name).map(x => x.toLowerCase());
@@ -307,7 +315,7 @@ class SimTerminal {
           const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
           this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to complete it."), "t-err"]]);
           if (this.onStateChange) this.onStateChange();
-          this.printPrompt();
+          this.appendInputLine();
           return;
         }
       }
@@ -324,8 +332,8 @@ class SimTerminal {
     if (out && out.length) this.print(out);
     else this.lastOutput = "";
     if (this.onStateChange) this.onStateChange();
-    // cls/clear deja 3awdo banner + prompt, bla ma nzido wa7ed akhor
-    if (key !== "cls" && key !== "clear") this.printPrompt();
+    // cls/clear deja 3awdo banner + input line, bla ma nzido wa7ed akhor
+    if (key !== "cls" && key !== "clear") this.appendInputLine();
   }
 
   unknownError(name) {
