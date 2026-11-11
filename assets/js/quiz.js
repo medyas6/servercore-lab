@@ -18,6 +18,8 @@ const QUIZ_MODULES = [
   { id: "core",      name: "Server Core & PowerShell" },
 ];
 
+const QUIZ_ORIGIN = "MEDYAS-2026-7F3A-91C4";
+
 /* q: question, c: 4 choix, a: index de la bonne réponse, why: explication */
 const QUIZ_BANK = [
 /* ---------- 1. Installation Windows Server 2019 ---------- */

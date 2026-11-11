@@ -667,6 +667,7 @@ COMMANDS.push(
 
 /* ---------------- Static sample data ---------------- */
 const SAMPLE = {
+  origin: "MEDYAS-2026-7F3A-91C4",
   server: [
     ["Hostname", "WINSRV-CORE"],
     ["Operating System", "Windows Server 2019 Standard"],

@@ -912,6 +912,10 @@ route("#/settings", () => `
 );
 
 /* ---------------- About ---------------- */
+
+/* origin id (base64) — kaytsta3mel bach ytbth l2asl */
+const APP_ORIGIN = atob("TUVEWUFTLTIwMjYtN0YzQS05MUM0");
+
 route("#/about", () => `
   ${pageHead("About & License", "What this project is and how you may use it.")}
   <div class="card"><h2>MEDC ServerCore Lab Training</h2>
@@ -919,6 +923,8 @@ route("#/about", () => `
       ["Version", "1.1.0"],
       ["Released", "2026-10-09"],
       ["Created by", "medyas"],
+      ["First published", "October 2026"],
+      ["Original repository", "github.com/medyas6/servercore-lab"],
       ["Type", "Educational simulator (client-side)"],
       ["Backend", "None — runs entirely in the browser"],
     ])}
@@ -936,7 +942,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
-      <li><span class="ver">v1.7.7</span><span class="date">2026-11-10</span> — A completed exercise now shows green (badge ✓ and checkbox) so it stands out clearly. Quiz modules start unchecked — you pick them yourself; starting with none selected shows "Sélectionne au moins un module."</li>
+      <li><span class="ver">v1.7.7</span><span class="date">2026-11-10</span> — A completed exercise now shows green (badge ✓ and checkbox) so it stands out clearly. Quiz modules start unchecked — you pick them yourself; starting with none selected shows "Sélectionne au moins un module." Authorship protection added.</li>
       <li><span class="ver">v1.7.6</span><span class="date">2026-11-10</span> — Terminal input now pinned to the bottom of the pane from the first load (transcript scrolls above it), like real PowerShell. Also: "Did you mean" only suggests close matches (no more 'cls' for 'nnn'), banner version removed to avoid confusion, shorter input placeholder for phones.</li>
       <li><span class="ver">v1.7.5</span><span class="date">2026-11-10</span> — Terminal like real PowerShell: the top input row is gone — you type on the prompt line at the bottom, below the last result. Each command freezes as its echo line, then a new prompt line appears below the output. Tab completion unchanged.</li>
       <li><span class="ver">v1.7.4</span><span class="date">2026-11-10</span> — Terminal like real PowerShell: after each command, a fresh prompt line appears below the result, with a blinking cursor — click it to type. Input stays on top, Tab completion unchanged.</li>

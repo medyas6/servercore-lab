@@ -4,6 +4,9 @@
    store lmchtarka (m7fouda f localStorage); leases ghir dyal session.
    ============================================================ */
 
+/* origin id dyal lab — kaytsta3mel f Get-Medyas */
+const ORIGIN_FP = "MEDYAS-2026-7F3A-91C4";
+
 /* ---------- tokenizer sghir dyal shell (tay7tarem quotes) ---------- */
 function tokenize(line) {
   const out = [];
@@ -377,6 +380,16 @@ class SimTerminal {
           "  cls  (clear)            clear the screen",
           "",
           "Open the Command Reference page for the full catalog with examples.",
+        ];
+      },
+      "get-medyas"() {
+        return [
+          "MEDC ServerCore Lab Training — Original author proof",
+          "Author              : medyas (Mohamed Yassine)",
+          "Original repository : https://github.com/medyas6/servercore-lab",
+          "First published     : October 2026",
+          "Fingerprint         : " + ORIGIN_FP,
+          "License             : All rights reserved — redistribution without written permission is not permitted.",
         ];
       },
       "get-command"(p) {
