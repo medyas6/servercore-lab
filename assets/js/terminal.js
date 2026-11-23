@@ -54,6 +54,15 @@ function ipToInt(ip) {
   return ((p[0] * 256 + p[1]) * 256 + p[2]) * 256 + p[3];
 }
 
+/* mask 255.255.255.0 -> 24 (bach netsh set address) */
+function maskToPrefix(mask) {
+  const n = ipToInt(mask);
+  if (n === null) return null;
+  let bits = 0, v = n >>> 0;
+  while (v & 0x80000000) { bits++; v = (v << 1) >>> 0; }
+  return v === 0 ? bits : null;
+}
+
 /* Reservations may sit anywhere in the scope's subnet (e.g. a /24),
    not necessarily inside the distribution range — like real DHCP. */
 function sameSubnet24(a, b) {
@@ -319,15 +328,15 @@ class SimTerminal {
     const foundCmd = COMMANDS.find(c => c.name.toLowerCase() === parsed.name.toLowerCase());
     if (foundCmd) {
       const params = this.paramsFor(foundCmd.name).map(x => x.toLowerCase());
-      if (params.length) {
-        const bad = Object.keys(parsed.named).find(k => !params.includes(k));
-        if (bad) {
-          const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
-          this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to complete it."), "t-err"]]);
-          if (this.onStateChange) this.onStateChange();
-          this.appendInputLine();
-          return;
-        }
+      // A20: 7ta les commands li syntax dyalhom bla params kaytrefdo -Named
+      // (help/history/cls ma 3ndhomch params 7a9i9iyin, kaykhdmo bla validation)
+      const bad = Object.keys(parsed.named).find(k => !params.includes(k));
+      if (bad && !["help", "history", "cls", "clear"].includes(parsed.name.toLowerCase())) {
+        const sug = this.closestWord(bad, this.paramsFor(foundCmd.name));
+        this.print([["'" + foundCmd.name + "' does not have a parameter named '-" + bad + "'." + (sug ? " Did you mean '-" + sug + "'?" : " Type the command, then '-' and press Tab to complete it."), "t-err"]]);
+        if (this.onStateChange) this.onStateChange();
+        this.appendInputLine();
+        return;
       }
     }
     const key = parsed.name.toLowerCase();
@@ -555,6 +564,8 @@ class SimTerminal {
         const sc = T.findScope(p.named.scopeid);
         if (!sc) return [[`Add-DhcpServerv4ExclusionRange: scope '${p.named.scopeid}' not found.`, "t-err"]];
         const start = p.named.startrange, end = p.named.endrange;
+        if (ipToInt(start) !== null && ipToInt(end) !== null && ipToInt(start) > ipToInt(end))
+          return [[`Add-DhcpServerv4ExclusionRange: StartRange ${start} is greater than EndRange ${end}.`, "t-err"]];
         if (ipToInt(start) === null || ipToInt(end) === null || ipToInt(start) > ipToInt(sc.end) || ipToInt(end) < ipToInt(sc.start))
           return [[`Add-DhcpServerv4ExclusionRange: range ${start} - ${end} is outside scope '${sc.name}'.`, "t-err"]];
         T.store.data.exclusions.push({ scopeId: sc.id, start, end });
@@ -572,10 +583,25 @@ class SimTerminal {
         return [[`Reservation ${ip} -> ${cid || "(none)"} added to scope '${sc.name}'.`, "t-ok"]];
       },
       "set-dhcpserverv4optionvalue"(p) {
+        // -Router = option 3, -DnsServer = option 6, -DnsDomain = option 15
+        let oid = p.named.optionid, val = p.named.value;
+        if (p.named.router !== undefined) { oid = "3"; val = String(p.named.router); }
+        else if (p.named.dnsserver !== undefined) { oid = "6"; val = String(p.named.dnsserver); }
+        else if (p.named.dnsdomain !== undefined) { oid = "15"; val = String(p.named.dnsdomain); }
+        if (!val) return [["Usage: Set-DhcpServerv4OptionValue -ScopeId <id> -OptionId <id> -Value <value>", "t-err"]];
+        T.store.data.options = T.store.data.options || {};
+        // -ComputerName bla -ScopeId: option dyal server kamel (local sim)
+        if (p.named.scopeid === undefined) {
+          if (p.named.computername !== undefined) {
+            T.store.data.options.__server__ = T.store.data.options.__server__ || {};
+            T.store.data.options.__server__[oid] = val;
+            T.store.save();
+            return [[`Option ${oid} = ${val} set on server '${p.named.computername}'. (simulated)`, "t-ok"]];
+          }
+          return [[`Set-DhcpServerv4OptionValue: scope 'undefined' not found.`, "t-err"]];
+        }
         const sc = T.findScope(p.named.scopeid);
         if (!sc) return [[`Set-DhcpServerv4OptionValue: scope '${p.named.scopeid}' not found.`, "t-err"]];
-        const oid = p.named.optionid || "3", val = p.named.value;
-        if (!val) return [["Usage: Set-DhcpServerv4OptionValue -ScopeId <id> -OptionId <id> -Value <value>", "t-err"]];
         T.store.data.options[sc.id] = T.store.data.options[sc.id] || {};
         T.store.data.options[sc.id][oid] = val;
         T.store.save();
@@ -591,6 +617,230 @@ class SimTerminal {
         leases.forEach(l => out.push(pad(l.ip, 17) + pad(l.mac, 20) + pad(l.host, 14) + l.state));
         out.push("", "(leases are generated per session and are not persisted)");
         return out;
+      },
+
+      /* ----- DNS: zones w records stateful (v1.8.0) ----- */
+      "add-dnsserverprimaryzone"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: Add-DnsServerPrimaryZone -Name <zone> -ZoneFile <file>", "t-err"]];
+        const zones = T.dnsZones();
+        if (zones.some(z => z.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`✔ Primary zone '${name}' is already hosted on this server.`, "t-ok"]];
+        zones.push({ name: String(name), type: "Primary", file: p.named.zonefile || (name + ".dns") });
+        T.store.save();
+        return [[`✔ Primary zone '${name}' created.`, "t-ok"]];
+      },
+      "get-dnsserverzone"() {
+        const zones = T.dnsZones();
+        const out = [pad("ZoneName", 32) + pad("ZoneType", 12) + "IsAutoCreated",
+                     pad("", 32, "-") + " " + pad("", 10, "-") + " -------------"];
+        zones.forEach(z => out.push(pad(z.name, 32) + pad(z.type, 12) + "False"));
+        // reverse zone dyal lab (default) b7al li kaygol catalog
+        out.push(pad("10.168.192.in-addr.arpa", 32) + pad("Primary", 12) + "True");
+        return out;
+      },
+      "remove-dnsserverzone"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: Remove-DnsServerZone -Name <zone>", "t-err"]];
+        if (String(name).toLowerCase() === "lab.local")
+          return [[`Remove-DnsServerZone: the zone 'lab.local' is protected and cannot be deleted in the simulator.`, "t-err"]];
+        const zones = T.dnsZones();
+        const i = zones.findIndex(z => z.name.toLowerCase() === String(name).toLowerCase());
+        if (i < 0) return [[`Remove-DnsServerZone: zone '${name}' was not found.`, "t-err"]];
+        zones.splice(i, 1);
+        T.store.data.dnsRecords = T.dnsRecords().filter(r => r.zone.toLowerCase() !== String(name).toLowerCase());
+        T.store.save();
+        return [[`✔ Zone '${name}' removed.`, "t-ok"]];
+      },
+      "add-dnsserverresourcerecorda"(p) {
+        const zone = p.named.zonename, name = p.named.name || p.positional[0], ip = p.named.ipv4address;
+        if (!zone || !name || !ip) return [["Usage: Add-DnsServerResourceRecordA -Name <name> -ZoneName <zone> -IPv4Address <ip>", "t-err"]];
+        if (!T.dnsZones().some(z => z.name.toLowerCase() === String(zone).toLowerCase()))
+          return [[`Add-DnsServerResourceRecordA: zone '${zone}' was not found.`, "t-err"]];
+        if (ipToInt(ip) === null) return [[`Add-DnsServerResourceRecordA: '${ip}' is not a valid IPv4 address.`, "t-err"]];
+        const recs = T.dnsRecords();
+        const dup = recs.find(r => r.zone.toLowerCase() === String(zone).toLowerCase() && r.name.toLowerCase() === String(name).toLowerCase() && r.type === "A");
+        if (dup) {
+          if (dup.data === ip) return [[`✔ A record '${name}' -> ${ip} is already present in zone '${zone}'.`, "t-ok"]];
+          return [[`Add-DnsServerResourceRecordA: record '${name}' (A) already exists in zone '${zone}' with a different address.`, "t-err"]];
+        }
+        recs.push({ zone: String(zone), name: String(name), type: "A", data: ip });
+        T.store.save();
+        return [[`✔ A record '${name}' -> ${ip} created in zone '${zone}'.`, "t-ok"]];
+      },
+      "add-dnsserverresourcerecordcname"(p) {
+        const zone = p.named.zonename, name = p.named.name || p.positional[0], alias = p.named.hostnamealias;
+        if (!zone || !name || !alias) return [["Usage: Add-DnsServerResourceRecordCName -Name <name> -ZoneName <zone> -HostNameAlias <target>", "t-err"]];
+        if (!T.dnsZones().some(z => z.name.toLowerCase() === String(zone).toLowerCase()))
+          return [[`Add-DnsServerResourceRecordCName: zone '${zone}' was not found.`, "t-err"]];
+        const recs = T.dnsRecords();
+        const dup = recs.find(r => r.zone.toLowerCase() === String(zone).toLowerCase() && r.name.toLowerCase() === String(name).toLowerCase() && r.type === "CNAME");
+        if (dup) {
+          if (dup.data === String(alias)) return [[`✔ CNAME record '${name}' -> ${alias} is already present in zone '${zone}'.`, "t-ok"]];
+          return [[`Add-DnsServerResourceRecordCName: record '${name}' (CNAME) already exists in zone '${zone}' with a different target.`, "t-err"]];
+        }
+        recs.push({ zone: String(zone), name: String(name), type: "CNAME", data: String(alias) });
+        T.store.save();
+        return [[`✔ CNAME record '${name}' -> ${alias} created in zone '${zone}'.`, "t-ok"]];
+      },
+      "add-dnsserverresourcerecordaaaa"(p) {
+        const zone = p.named.zonename, name = p.named.name || p.positional[0], ip = p.named.ipv6address;
+        if (!zone || !name || !ip) return [["Usage: Add-DnsServerResourceRecordAAAA -Name <name> -ZoneName <zone> -IPv6Address <ipv6>", "t-err"]];
+        if (!T.dnsZones().some(z => z.name.toLowerCase() === String(zone).toLowerCase()))
+          return [[`Add-DnsServerResourceRecordAAAA: zone '${zone}' was not found.`, "t-err"]];
+        const recs = T.dnsRecords();
+        const dup = recs.find(r => r.zone.toLowerCase() === String(zone).toLowerCase() && r.name.toLowerCase() === String(name).toLowerCase() && r.type === "AAAA");
+        if (dup) {
+          if (dup.data === String(ip)) return [[`✔ AAAA record '${name}' -> ${ip} is already present in zone '${zone}'.`, "t-ok"]];
+          return [[`Add-DnsServerResourceRecordAAAA: record '${name}' (AAAA) already exists in zone '${zone}' with a different address.`, "t-err"]];
+        }
+        recs.push({ zone: String(zone), name: String(name), type: "AAAA", data: String(ip) });
+        T.store.save();
+        return [[`✔ AAAA record '${name}' -> ${ip} created in zone '${zone}'.`, "t-ok"]];
+      },
+      "add-dnsserversecondaryzone"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: Add-DnsServerSecondaryZone -Name <zone> -ZoneFile <file> -MasterServers <ip>", "t-err"]];
+        const zones = T.dnsZones();
+        if (zones.some(z => z.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`Add-DnsServerSecondaryZone: zone '${name}' already exists.`, "t-err"]];
+        zones.push({ name: String(name), type: "Secondary", file: p.named.zonefile || (name + ".dns"), master: p.named.masterservers || "" });
+        T.store.save();
+        return [[`✔ Secondary zone '${name}' created (master: ${p.named.masterservers || "(none)"}).`, "t-ok"]];
+      },
+      "get-dnsserverresourcerecord"(p) {
+        const zone = p.named.zonename || p.positional[0];
+        if (!zone) return [["Usage: Get-DnsServerResourceRecord -ZoneName <zone>", "t-err"]];
+        if (!T.dnsZones().some(z => z.name.toLowerCase() === String(zone).toLowerCase()))
+          return [[`Get-DnsServerResourceRecord: zone '${zone}' was not found.`, "t-err"]];
+        const rows = T.dnsRecords().filter(r => r.zone.toLowerCase() === String(zone).toLowerCase());
+        const out = [pad("HostName", 14) + pad("RecordType", 12) + "RecordData",
+                     pad("", 14, "-") + " " + pad("", 10, "-") + " ----------"];
+        rows.forEach(r => out.push(pad(r.name, 14) + pad(r.type, 12) + r.data));
+        // defaults dyal lab.local (NS/SOA) men SAMPLE
+        if (String(zone).toLowerCase() === "lab.local") {
+          SAMPLE.dnsRecords.filter(r => r[0] === "@").forEach(r => out.push(pad(r[0], 14) + pad(r[1], 12) + r[2]));
+        }
+        if (out.length === 2) out.push(`(no records in zone '${zone}')`);
+        return out;
+      },
+      "clear-dnsservercache"() {
+        return [[`✔ DNS server cache cleared. (simulated)`, "t-ok"]];
+      },
+
+      /* ----- routes w network summary (v1.8.0) ----- */
+      "get-netroute"(p) {
+        const f = (p.named.destinationprefix || p.positional[0] || "").toLowerCase();
+        const rows = T.routes().filter(r => !f || r.dest.toLowerCase().includes(f));
+        if (!rows.length) return [`(no route to '${p.named.destinationprefix || p.positional[0]}' was found)`];
+        const out = [pad("DestinationPrefix", 20) + pad("NextHop", 17) + "InterfaceAlias",
+                     pad("", 19, "-") + " " + pad("", 15, "-") + " --------------"];
+        rows.forEach(r => out.push(pad(r.dest, 20) + pad(r.nextHop, 17) + r.iface));
+        return out;
+      },
+      "new-netroute"(p) {
+        const dest = p.named.destinationprefix, hop = p.named.nexthop, iface = p.named.interfacealias || "Ethernet";
+        if (!dest || !hop) return [["Usage: New-NetRoute -DestinationPrefix <prefix> -NextHop <ip> [-InterfaceAlias <name>]", "t-err"]];
+        const routes = T.routes();
+        if (routes.some(r => r.dest.toLowerCase() === String(dest).toLowerCase()))
+          return [[`New-NetRoute: a route to '${dest}' already exists.`, "t-err"]];
+        routes.push({ dest: String(dest), nextHop: String(hop), iface: String(iface) });
+        T.store.save();
+        return [[`✔ Route to ${dest} via ${hop} added on '${iface}'.`, "t-ok"]];
+      },
+      "remove-netroute"(p) {
+        const dest = p.named.destinationprefix || p.positional[0];
+        if (!dest) return [["Usage: Remove-NetRoute -DestinationPrefix <prefix>", "t-err"]];
+        const routes = T.routes();
+        const i = routes.findIndex(r => r.dest.toLowerCase() === String(dest).toLowerCase());
+        if (i < 0) return [[`Remove-NetRoute: no route to '${dest}' was found.`, "t-err"]];
+        routes.splice(i, 1);
+        T.store.save();
+        return [[`✔ Route to '${dest}' removed.`, "t-ok"]];
+      },
+      "get-dnsclientserveraddress"(p) {
+        const d = T.store.data;
+        const dns = d.dnsServer || "127.0.0.1";
+        return [pad("InterfaceAlias", 16) + pad("AddressFamily", 15) + "ServerAddresses",
+                pad("", 16, "-") + " " + pad("", 13, "-") + " ---------------",
+                pad(p.named.interfacealias || "Ethernet", 16) + pad("IPv4", 15) + dns];
+      },
+      "get-netipconfiguration"(p) {
+        const d = T.store.data;
+        const ip = d.ipAddress || "192.168.10.10";
+        const plen = parseInt(d.prefixLength || "24", 10) || 24;
+        const m = (0xFFFFFFFF << (32 - plen)) >>> 0;
+        const mask = [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join(".");
+        return ["InterfaceAlias : " + (p.named.interfacealias || "Ethernet"),
+          "IPv4Address    : " + ip,
+          "SubnetMask     : " + mask,
+          "DefaultGateway : " + (d.gateway || "192.168.10.1"),
+          "DNSServer      : " + (d.dnsServer || "127.0.0.1")];
+      },
+
+      /* ----- DHCP: read/remove sides (v1.8.0) ----- */
+      "get-dhcpserverv4optionvalue"(p) {
+        T.store.data.options = T.store.data.options || {};
+        if (p.named.scopeid !== undefined) {
+          const sc = T.findScope(p.named.scopeid);
+          if (!sc) return [[`Get-DhcpServerv4OptionValue: scope '${p.named.scopeid}' not found.`, "t-err"]];
+          const opts = T.store.data.options[sc.id] || {};
+          if (p.named.optionid !== undefined) {
+            const v = opts[String(p.named.optionid)];
+            if (v === undefined) return [`Option ${p.named.optionid} is not set on scope '${sc.name}'.`];
+            return [`Option ${p.named.optionid} = ${v} (scope '${sc.name}')`];
+          }
+          const ids = Object.keys(opts);
+          if (!ids.length) return [`(no options set on scope '${sc.name}')`];
+          const names = { 3: "Router", 6: "DNS Server", 15: "DNS Domain" };
+          const out = [pad("OptionId", 10) + pad("Name", 14) + "Value", pad("", 10, "-") + " " + pad("", 12, "-") + " -----"];
+          ids.forEach(id => out.push(pad(id, 10) + pad(names[id] || "", 14) + opts[id]));
+          return out;
+        }
+        const srv = T.store.data.options.__server__ || {};
+        const ids = Object.keys(srv);
+        if (p.named.optionid !== undefined) {
+          const v = srv[String(p.named.optionid)];
+          if (v === undefined) return [`Option ${p.named.optionid} is not set on this server.`];
+          return [`Option ${p.named.optionid} = ${v} (server)`];
+        }
+        if (!ids.length) return ["(no server-level options set)"];
+        const out = [pad("OptionId", 10) + "Value", pad("", 10, "-") + " -----"];
+        ids.forEach(id => out.push(pad(id, 10) + srv[id]));
+        return out;
+      },
+      "remove-dhcpserverv4scope"(p) {
+        const sc = T.findScope(p.named.scopeid || p.positional[0]);
+        if (!sc) return [[`Remove-DhcpServerv4Scope: scope '${p.named.scopeid || p.positional[0]}' not found.`, "t-err"]];
+        T.store.data.scopes = T.store.data.scopes.filter(s => s.id !== sc.id);
+        T.store.data.exclusions = (T.store.data.exclusions || []).filter(e => e.scopeId !== sc.id);
+        T.store.data.reservations = (T.store.data.reservations || []).filter(r => r.scopeId !== sc.id);
+        T.store.data.options = T.store.data.options || {};
+        delete T.store.data.options[sc.id];
+        delete T.sessionLeases[sc.id];
+        T.store.save();
+        return [[`✔ Scope '${sc.name}' removed with its exclusions, reservations and options.`, "t-ok"]];
+      },
+      "get-dhcpserverv4exclusionrange"(p) {
+        const sc = T.findScope(p.named.scopeid || p.positional[0]);
+        if (!sc) return [[`Get-DhcpServerv4ExclusionRange: scope '${p.named.scopeid || p.positional[0]}' not found.`, "t-err"]];
+        const rows = (T.store.data.exclusions || []).filter(e => e.scopeId === sc.id);
+        if (!rows.length) return [`(no exclusion ranges on scope '${sc.name}')`];
+        const out = [pad("StartRange", 17) + "EndRange", pad("", 15, "-") + " --------"];
+        rows.forEach(e => out.push(pad(e.start, 17) + e.end));
+        return out;
+      },
+      "remove-dhcpserverv4reservation"(p) {
+        const sc = T.findScope(p.named.scopeid);
+        if (!sc) return [[`Remove-DhcpServerv4Reservation: scope '${p.named.scopeid}' not found.`, "t-err"]];
+        const cid = p.named.clientid;
+        if (!cid) return [["Usage: Remove-DhcpServerv4Reservation -ScopeId <id> -ClientId <mac>", "t-err"]];
+        const list = T.store.data.reservations || [];
+        const i = list.findIndex(r => r.scopeId === sc.id && String(r.clientId).toLowerCase() === String(cid).toLowerCase());
+        if (i < 0) return [[`Remove-DhcpServerv4Reservation: no reservation for client '${cid}' was found on scope '${sc.name}'.`, "t-err"]];
+        const gone = list.splice(i, 1)[0];
+        T.store.save();
+        return [[`✔ Reservation ${gone.ip} (${gone.clientId}) removed from scope '${sc.name}'.`, "t-ok"]];
       },
 
       /* ----- server config ----- */
@@ -624,7 +874,7 @@ class SimTerminal {
         const plen = parseInt(d.prefixLength || "24", 10) || 24;
         const m = (0xFFFFFFFF << (32 - plen)) >>> 0;
         const mask = [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join(".");
-        const gw = d.defaultGateway || "192.168.10.1";
+        const gw = d.gateway || "192.168.10.1";
         const dns = d.dnsServer || "127.0.0.1";
         const sw = (p.positional[0] || "").toLowerCase();
         if (sw && sw !== "/all") return [[`ipconfig: unknown switch '${p.positional[0]}'. Usage: ipconfig [/all]`, "t-err"]];
@@ -669,7 +919,9 @@ class SimTerminal {
       },
       "resolve-dnsname"(p) {
         const n = (p.named.name || p.positional[0] || "").toLowerCase();
-        if (n.includes("dc01")) return [`Name                           Type   IPAddress`, `----                           ----   ---------`, `dc01.lab.local                 A      192.168.10.10`];
+        /* n9leb f records dyal DNS (b7al nslookup), machi ghir dc01 */
+        const hit = T.dnsRecords().find(r => (r.name + "." + r.zone).toLowerCase() === n || r.name.toLowerCase() === n);
+        if (hit) return [`Name                           Type   IPAddress`, `----                           ----   ---------`, pad(hit.name + "." + hit.zone, 31) + pad(hit.type, 7) + hit.data];
         return [[`Resolve-DnsName: '${p.named.name || p.positional[0]}' could not be resolved (simulated).`, "t-err"]];
       },
       "restart-computer"() {
@@ -678,33 +930,45 @@ class SimTerminal {
 
       /* ----- logs & storage ----- */
       "get-eventlog"(p) {
-        const log = (p.named.logname || "System").toLowerCase();
-        if (log !== "system" && log !== "application")
-          return [[`Get-EventLog: log '${p.named.logname}' not found. Try 'System'.`, "t-err"]];
-        const n = Math.min(parseInt(p.named.newest || "5", 10) || 5, SAMPLE.events.length);
-        const out = [pad("Time", 20) + pad("Id", 7) + pad("Log", 9) + "Message", pad("", 20, "-") + " " + pad("", 5, "-") + " " + pad("", 7, "-") + " -------"];
-        SAMPLE.events.slice(0, n).forEach(e => out.push(pad(e[0], 20) + pad(e[1], 7) + pad("System", 9) + e[3]));
+        const rawLog = p.named.logname || "System";
+        const log = String(rawLog).toLowerCase();
+        // Application 3ndha sample dyalha, machi nafs System
+        const appEvents = [
+          ["2026-10-09 08:13:20", "1000", "Application", "Application 'dns.exe' started successfully."],
+          ["2026-10-09 08:15:47", "1001", "Application", "The DHCP Server service entered the running state."],
+          ["2026-10-09 09:02:11", "1002", "Application", "Group Policy settings were applied successfully."],
+        ];
+        const sets = { system: SAMPLE.events, application: appEvents };
+        if (!sets[log])
+          return [[`Get-EventLog: log '${rawLog}' not found. Try 'System' or 'Application'.`, "t-err"]];
+        const rows = sets[log];
+        const label = log === "application" ? "Application" : "System";
+        const n = Math.min(parseInt(p.named.newest || "5", 10) || 5, rows.length);
+        const out = [pad("Time", 20) + pad("Id", 7) + pad("Log", 12) + "Message", pad("", 20, "-") + " " + pad("", 5, "-") + " " + pad("", 10, "-") + " -------"];
+        rows.slice(0, n).forEach(e => out.push(pad(e[0], 20) + pad(e[1], 7) + pad(label, 12) + e[3]));
         return out;
       },
       "get-winevent"(p) {
-        return T.handlers["get-eventlog"].call(T, p);
+        // -MaxEvents hiya nafs -Newest dyal Get-EventLog
+        const q = { named: Object.assign({}, p.named, { newest: p.named.maxevents || "5" }), positional: p.positional, raw: p.raw };
+        return T.handlers["get-eventlog"].call(T, q);
       },
       "get-disk"() {
         const out = [pad("Number", 8) + pad("FriendlyName", 20) + pad("Size", 9) + pad("PartitionStyle", 16) + "OperationalStatus",
                      pad("", 8, "-") + " " + pad("", 18, "-") + " " + pad("", 7, "-") + " " + pad("", 15, "-") + " -----------------"];
-        SAMPLE.disks.forEach(d => out.push(pad(d[0], 8) + pad(d[1], 20) + pad(d[2], 9) + pad(d[3], 16) + d[4]));
+        T.disks().forEach(d => out.push(pad(d.number, 8) + pad(d.name, 20) + pad(d.size, 9) + pad(d.style, 16) + d.status));
         return out;
       },
       "get-volume"() {
         const out = [pad("DriveLetter", 12) + pad("Label", 10) + pad("FileSystem", 12) + pad("Size", 9) + "SizeRemaining",
                      pad("", 12, "-") + " " + pad("", 8, "-") + " " + pad("", 11, "-") + " " + pad("", 7, "-") + " -------------"];
-        SAMPLE.volumes.forEach(v => out.push(pad(v[0], 12) + pad(v[1], 10) + pad(v[2], 12) + pad(v[3], 9) + v[4]));
+        T.volumes().forEach(v => out.push(pad(v.letter, 12) + pad(v.label, 10) + pad(v.fs, 12) + pad(v.size, 9) + v.remaining));
         return out;
       },
       "get-netfirewallrule"() {
         const out = [pad("DisplayName", 28) + pad("Direction", 11) + pad("Action", 8) + "Enabled",
                      pad("", 28, "-") + " " + pad("", 10, "-") + " " + pad("", 7, "-") + " -------"];
-        SAMPLE.firewall.forEach(f => out.push(pad(f[0], 28) + pad(f[1], 11) + pad(f[2], 8) + f[3]));
+        T.fwRules().forEach(f => out.push(pad(f.name, 28) + pad(f.direction, 11) + pad(f.action, 8) + f.enabled));
         return out;
       },
 
@@ -733,10 +997,30 @@ class SimTerminal {
           "OperatingSystem        : Windows Server 2019 Standard"];
       },
       "install-addsforest"(p) {
+        if (!T.store.data.roles.includes("AD-Domain-Services"))
+          return [["Install-ADDSForest: the AD DS role is not installed. Run 'Install-WindowsFeature AD-Domain-Services' first.", "t-err"]];
         const dn = String(p.named.domainname || p.positional[0] || "lab.local").replace(/['"]/g, "");
         T.store.data.domain = dn;
+        T.store.data.ad.domain = dn;
+        T.store.data.ad.forest = dn;
         T.store.save();
         return [[`✔ Forest ${dn} created; this server is now a domain controller. (simulated)`, "t-ok"]];
+      },
+      "add-computer"(p) {
+        const dn = String(p.named.domainname || p.positional[0] || "").replace(/['"]/g, "");
+        if (!dn) return [["Usage: Add-Computer -DomainName <domain>", "t-err"]];
+        // bla forest, domain join ma ymknch — WORKGROUP hiya l7ala l2asliya
+        if (!T.store.data.domain || T.store.data.domain === "WORKGROUP")
+          return [[`Add-Computer: the domain '${dn}' cannot be contacted. No forest exists yet — run 'Install-ADDSForest -DomainName ${dn}' first.`, "t-err"]];
+        T.store.data.domain = dn;
+        T.store.save();
+        return [[`✔ Computer joined to domain '${dn}'. A restart is required (simulated).`, "t-ok"]];
+      },
+      "test-computersecurechannel"() {
+        // workgroup = False, domain-joined = True
+        if (!T.store.data.domain || T.store.data.domain === "WORKGROUP")
+          return ["False", "(the server is in a workgroup — join a domain first)"];
+        return ["True"];
       },
       "get-aduser"(p) {
         const ad = T.store.data.ad;
@@ -750,8 +1034,32 @@ class SimTerminal {
             "SamAccountName    : " + u.name,
             "MemberOf          : " + (u.groups.join(", ") || "(none)")];
         }
+        // -Filter * = ga3 users; -Filter "prop -like 'x*'" = match sghir b wildcard
+        let list = ad.users.slice();
+        const sb = p.named.searchbase;
+        if (sb) {
+          const m = /OU=([^,;]+)/i.exec(String(sb));
+          if (m) list = list.filter(u => u.container && u.container.toLowerCase() === m[1].toLowerCase());
+        }
+        if (p.named.filter !== undefined && p.named.filter !== true) {
+          const f = String(p.named.filter).trim();
+          if (f !== "*") {
+            const m = /^\s*([A-Za-z]+)\s+-(like|eq)\s+['"]?(.*?)['"]?\s*$/i.exec(f);
+            if (!m) return [[`Get-ADUser: filter '${f}' is not supported in the simulator. Use -Filter * or "property -like 'x*'".`, "t-err"]];
+            const prop = m[1].toLowerCase(), op = m[2].toLowerCase(), pat = m[3];
+            list = list.filter(u => {
+              const v = String(u[prop] !== undefined && u[prop] !== null ? u[prop] : "");
+              if (op === "like") {
+                const re = new RegExp("^" + pat.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$", "i");
+                return re.test(v);
+              }
+              return v.toLowerCase() === pat.toLowerCase();
+            });
+          }
+        }
+        if (!list.length) return ["(no users match the filter)"];
         const out = ["Name         Enabled  DistinguishedName", "----         -------  -----------------"];
-        ad.users.forEach(u => out.push(pad(u.name, 13) + pad(u.enabled ? "True" : "False", 9) + adDN(u, ad)));
+        list.forEach(u => out.push(pad(u.name, 13) + pad(u.enabled ? "True" : "False", 9) + adDN(u, ad)));
         return out;
       },
       "new-aduser"(p) {
@@ -800,9 +1108,10 @@ class SimTerminal {
       },
       "remove-aduser"(p) {
         const id = p.named.identity || p.positional[0];
+        if (!id) return [["Usage: Remove-ADUser -Identity <name>", "t-err"]];
         const ad = T.store.data.ad;
-        const i = id ? ad.users.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
-        if (i < 0) return [["Usage: Remove-ADUser -Identity <name>", "t-err"]];
+        const i = ad.users.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (i < 0) return [[`Remove-ADUser: Cannot find an object with identity: '${id}'.`, "t-err"]];
         const gone = ad.users.splice(i, 1)[0];
         ad.groups.forEach(g => { g.members = g.members.filter(m => m.toLowerCase() !== gone.name.toLowerCase()); });
         T.store.save();
@@ -841,9 +1150,10 @@ class SimTerminal {
       },
       "remove-adcomputer"(p) {
         const id = p.named.identity || p.positional[0];
+        if (!id) return [["Usage: Remove-ADComputer -Identity <name>", "t-err"]];
         const ad = T.store.data.ad;
-        const i = id ? ad.computers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
-        if (i < 0) return [["Usage: Remove-ADComputer -Identity <name>", "t-err"]];
+        const i = ad.computers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (i < 0) return [[`Remove-ADComputer: Cannot find an object with identity: '${id}'.`, "t-err"]];
         const gone = ad.computers.splice(i, 1)[0];
         T.store.save();
         return [[`✔ Computer '${gone.name}' removed.`, "t-ok"]];
@@ -851,7 +1161,10 @@ class SimTerminal {
       "get-adorganizationalunit"(p) {
         const ad = T.store.data.ad;
         const id = p.named.identity || p.positional[0];
-        const dnOf = c => (c.type === "ou" ? "OU=" : "CN=") + c.name + ",DC=lab,DC=local";
+        /* suffix DC 7asab domain li kayn daba (b7al adDomainSuffix f app.js) */
+        const dom = (T.store.data.domain && T.store.data.domain !== "WORKGROUP") ? T.store.data.domain : (ad.domain || "lab.local");
+        const dc = String(dom).split(".").filter(Boolean).map(x => "DC=" + x).join(",");
+        const dnOf = c => (c.type === "ou" ? "OU=" : "CN=") + c.name + "," + dc;
         if (id) {
           const c = ad.containers.find(x => x.name.toLowerCase() === String(id).toLowerCase());
           if (!c) return [[`Get-ADOrganizationalUnit: Cannot find an object with identity: '${id}'.`, "t-err"]];
@@ -875,9 +1188,10 @@ class SimTerminal {
       },
       "remove-adorganizationalunit"(p) {
         const id = p.named.identity || p.positional[0];
+        if (!id) return [["Usage: Remove-ADOrganizationalUnit -Identity <OU-name>", "t-err"]];
         const ad = T.store.data.ad;
-        const i = id ? ad.containers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase() && x.type === "ou") : -1;
-        if (i < 0) return [["Usage: Remove-ADOrganizationalUnit -Identity <OU-name>", "t-err"]];
+        const i = ad.containers.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase() && x.type === "ou");
+        if (i < 0) return [[`Remove-ADOrganizationalUnit: Cannot find an object with identity: '${id}'.`, "t-err"]];
         const gone = ad.containers[i];
         const hasKids = ad.users.some(u => u.container === gone.name) || ad.computers.some(c => c.container === gone.name) || ad.groups.some(g => g.container === gone.name);
         const rec = String(p.named.recursive || "").toLowerCase();
@@ -899,6 +1213,7 @@ class SimTerminal {
           return ["DistinguishedName : " + adDN(g, ad),
             "Name              : " + g.name,
             "GroupScope        : " + g.scope,
+            "GroupCategory     : " + (g.category || "Security"),
             "Members           : " + (g.members.join(", ") || "(none)")];
         }
         const out = ["Name             Scope     DistinguishedName", "----             -----     -----------------"];
@@ -913,15 +1228,27 @@ class SimTerminal {
           return [[`New-ADGroup: An object with the name '${name}' already exists.`, "t-err"]];
         const want = String(p.named.groupscope || "Global").toLowerCase();
         const scope = ["Global", "DomainLocal", "Universal"].find(s => s.toLowerCase() === want) || "Global";
-        ad.groups.push({ name: String(name), scope, container: "Users", members: [] });
+        const catRaw = String(p.named.groupcategory || "Security").toLowerCase();
+        const category = ["security", "distribution"].find(c => c.toLowerCase() === catRaw);
+        if (!category) return [[`New-ADGroup: '${p.named.groupcategory}' is not a valid GroupCategory. Valid values: Security, Distribution.`, "t-err"]];
+        const cat = category.charAt(0).toUpperCase() + category.slice(1);
+        let container = "Users";
+        const m = /OU=([^,;]+)/i.exec(p.named.path || "");
+        if (m) {
+          const ou = ad.containers.find(c => c.name.toLowerCase() === m[1].toLowerCase());
+          if (!ou) return [[`New-ADGroup: OU '${m[1]}' was not found.`, "t-err"]];
+          container = ou.name;
+        }
+        ad.groups.push({ name: String(name), scope, category: cat, container, members: [] });
         T.store.save();
-        return [[`✔ Group '${name}' (${scope}) created in Users.`, "t-ok"]];
+        return [[`✔ Group '${name}' (${scope}) created in ${container}.`, "t-ok"]];
       },
       "remove-adgroup"(p) {
         const id = p.named.identity || p.positional[0];
+        if (!id) return [["Usage: Remove-ADGroup -Identity <name>", "t-err"]];
         const ad = T.store.data.ad;
-        const i = id ? ad.groups.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase()) : -1;
-        if (i < 0) return [["Usage: Remove-ADGroup -Identity <name>", "t-err"]];
+        const i = ad.groups.findIndex(x => x.name.toLowerCase() === String(id).toLowerCase());
+        if (i < 0) return [[`Remove-ADGroup: Cannot find an object with identity: '${id}'.`, "t-err"]];
         const gone = ad.groups.splice(i, 1)[0];
         ad.users.forEach(u => { u.groups = u.groups.filter(g => g.toLowerCase() !== gone.name.toLowerCase()); });
         T.store.save();
@@ -936,32 +1263,560 @@ class SimTerminal {
         return ["Name", "----", ...g.members];
       },
       "add-adgroupmember"(p) {
-        const id = p.named.identity;
+        const id = p.named.identity || p.positional[0];
         const ad = T.store.data.ad;
         const g = id && ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
         if (!g) return [["Usage: Add-ADGroupMember -Identity <group> -Members <user,...>", "t-err"]];
-        const members = String(p.named.members || p.positional[0] || "").split(",").map(s => s.trim()).filter(Boolean);
+        // -Members wla positionals: ila -Identity named, members f positional[0..],
+        // ila identity positional, members f positional[1..]
+        const memberTokens = p.named.identity !== undefined ? p.positional : p.positional.slice(1);
+        const members = p.named.members !== undefined
+          ? String(p.named.members).split(",").map(s => s.trim()).filter(Boolean)
+          : memberTokens.flatMap(s => String(s).split(",")).map(s => s.trim()).filter(Boolean);
         if (!members.length) return [["Add-ADGroupMember: no member names supplied.", "t-err"]];
-        const added = [];
+        const added = [], already = [], missing = [];
         members.forEach(mn => {
           const u = ad.users.find(x => x.name.toLowerCase() === mn.toLowerCase());
-          if (!u) return;
-          if (!g.members.some(x => x.toLowerCase() === u.name.toLowerCase())) { g.members.push(u.name); added.push(u.name); }
+          if (!u) { missing.push(mn); return; }
+          if (g.members.some(x => x.toLowerCase() === u.name.toLowerCase())) { already.push(u.name); return; }
+          g.members.push(u.name);
           if (!u.groups.some(x => x.toLowerCase() === g.name.toLowerCase())) u.groups.push(g.name);
+          added.push(u.name);
         });
         T.store.save();
-        return [[`✔ Added ${added.length ? added.join(", ") : "(none — check the user names)"} to '${g.name}'.`, "t-ok"]];
+        const out = [];
+        missing.forEach(mn => out.push([`Add-ADGroupMember: Cannot find an object with identity: '${mn}'.`, "t-err"]));
+        already.forEach(mn => out.push(`${mn} is already a member of '${g.name}'.`));
+        if (added.length) out.push([`✔ Added ${added.join(", ")} to '${g.name}'.`, "t-ok"]);
+        return out;
       },
       "remove-adgroupmember"(p) {
-        const id = p.named.identity;
+        const id = p.named.identity || p.positional[0];
         const ad = T.store.data.ad;
         const g = id && ad.groups.find(x => x.name.toLowerCase() === String(id).toLowerCase());
         if (!g) return [["Usage: Remove-ADGroupMember -Identity <group> -Members <user,...>", "t-err"]];
-        const members = String(p.named.members || p.positional[0] || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+        const memberTokens = p.named.identity !== undefined ? p.positional : p.positional.slice(1);
+        const members = p.named.members !== undefined
+          ? String(p.named.members).split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+          : memberTokens.flatMap(s => String(s).split(",")).map(s => s.trim().toLowerCase()).filter(Boolean);
         g.members = g.members.filter(m => !members.includes(m.toLowerCase()));
         ad.users.forEach(u => { if (members.includes(u.name.toLowerCase())) u.groups = u.groups.filter(x => x.toLowerCase() !== g.name.toLowerCase()); });
         T.store.save();
         return [[`✔ Members removed from '${g.name}'.`, "t-ok"]];
+      },
+      /* ----- GPO: stateful (v1.8.0) ----- */
+      "new-gpo"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: New-GPO -Name <name>", "t-err"]];
+        const gpos = T.gpos();
+        if (gpos.some(g => g.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-GPO: a GPO with the name '${name}' already exists.`, "t-err"]];
+        const guid = "{" + [8, 4, 4, 4, 12].map(n => Array.from({ length: n }, () => "0123456789ABCDEF"[Math.floor(Math.random() * 16)]).join("")).join("-") + "}";
+        gpos.push({ name: String(name), id: guid, links: [], created: new Date().toISOString().slice(0, 10) });
+        T.store.save();
+        return [[`✔ GPO '${name}' created (ID: ${guid}).`, "t-ok"]];
+      },
+      "get-gpo"(p) {
+        const gpos = T.gpos();
+        const name = p.named.name || p.positional[0];
+        if (name) {
+          const g = gpos.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+          if (!g) return [[`Get-GPO: GPO '${name}' was not found.`, "t-err"]];
+          return ["DisplayName : " + g.name, "Id          : " + g.id, "Status      : Enabled", "Links       : " + (g.links.join(", ") || "(none)")];
+        }
+        if (!gpos.length) return ["(no GPOs yet — use New-GPO to create one)"];
+        const out = [pad("DisplayName", 24) + pad("Status", 10) + pad("Created", 12) + "Links",
+                     pad("", 24, "-") + " " + pad("", 8, "-") + " " + pad("", 10, "-") + " -----"];
+        gpos.forEach(g => out.push(pad(g.name, 24) + pad("Enabled", 10) + pad(g.created, 12) + (g.links.join(", ") || "(none)")));
+        return out;
+      },
+      "new-gplink"(p) {
+        const name = p.named.name || p.positional[0], target = p.named.target;
+        if (!name || !target) return [["Usage: New-GPLink -Name <gpo> -Target <dn>", "t-err"]];
+        const g = T.gpos().find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!g) return [[`New-GPLink: GPO '${name}' was not found.`, "t-err"]];
+        if (!g.links.includes(target)) g.links.push(target);
+        T.store.save();
+        return [[`✔ GPO '${g.name}' linked to '${target}'.`, "t-ok"]];
+      },
+      "remove-gpo"(p) {
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: Remove-GPO -Name <name>", "t-err"]];
+        if (String(name).toLowerCase() === "default domain policy")
+          return [[`Remove-GPO: the Default Domain Policy is protected in the simulator.`, "t-err"]];
+        const gpos = T.gpos();
+        const i = gpos.findIndex(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (i < 0) return [[`Remove-GPO: GPO '${name}' was not found.`, "t-err"]];
+        gpos.splice(i, 1);
+        T.store.save();
+        return [[`✔ GPO '${name}' removed.`, "t-ok"]];
+      },
+      "gpupdate"() {
+        const applied = T.gpos().filter(g => g.links.length);
+        const out = ["Updating policy...", "",
+          "Computer Policy update has completed successfully.",
+          "User Policy update has completed successfully."];
+        if (applied.length) {
+          out.push("", "Applied GPOs:");
+          applied.forEach(g => out.push("    " + g.name + "  (linked to " + g.links.join(", ") + ")"));
+        } else {
+          out.push("", "(no GPOs are linked — nothing to apply)");
+        }
+        return out;
+      },
+      "gpresult"(p) {
+        const sw = (p.positional[0] || "").toLowerCase();
+        if (sw !== "/r") return [["Usage: gpresult /r", "t-err"]];
+        const applied = T.gpos().filter(g => g.links.length);
+        const d = T.store.data;
+        const out = ["RSOP summary for " + (d.hostname || "WINSRV-CORE") + " (simulated)", "",
+          "COMPUTER SETTINGS", "------------------",
+          "    CN=" + (d.hostname || "WINSRV-CORE") + ",OU=Domain Controllers,DC=lab,DC=local", "",
+          "    Applied Group Policy Objects", "    -----------------------------"];
+        if (applied.length) applied.forEach(g => out.push("        " + g.name));
+        else out.push("        (none — no GPOs are linked)");
+        out.push("", "USER SETTINGS", "------------------",
+          "    Applied Group Policy Objects", "    -----------------------------");
+        if (applied.length) applied.forEach(g => out.push("        " + g.name));
+        else out.push("        (none — no GPOs are linked)");
+        return out;
+      },
+      "backup-gpo"(p) {
+        const path = p.named.path || p.positional[0];
+        if (!path) return [["Usage: Backup-GPO [-Name <gpo> | -All] -Path <folder>", "t-err"]];
+        const gpos = T.gpos();
+        if (p.named.all !== undefined) {
+          if (!gpos.length) return ["(no GPOs to back up)"];
+          return [[`✔ Backed up ${gpos.length} GPO(s) to '${path}'.`, "t-ok"]];
+        }
+        const name = p.named.name || p.positional[0];
+        if (!name) return [["Usage: Backup-GPO [-Name <gpo> | -All] -Path <folder>", "t-err"]];
+        const g = gpos.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!g) return [[`Backup-GPO: GPO '${name}' was not found.`, "t-err"]];
+        return [[`✔ GPO '${g.name}' backed up to '${path}'.`, "t-ok"]];
+      },
+
+      /* ----- firewall: stateful (v1.8.0) ----- */
+      "new-netfirewallrule"(p) {
+        const name = p.named.displayname || p.positional[0];
+        const dir = p.named.direction, act = p.named.action;
+        if (!name || !dir || !act) return [["Usage: New-NetFirewallRule -DisplayName <name> -Direction <Inbound|Outbound> -Action <Allow|Block>", "t-err"]];
+        const d = String(dir).toLowerCase(), a = String(act).toLowerCase();
+        if (d !== "inbound" && d !== "outbound") return [[`New-NetFirewallRule: '${dir}' is not a valid Direction. Valid values: Inbound, Outbound.`, "t-err"]];
+        if (a !== "allow" && a !== "block") return [[`New-NetFirewallRule: '${act}' is not a valid Action. Valid values: Allow, Block.`, "t-err"]];
+        const rules = T.fwRules();
+        if (rules.some(r => r.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`✔ Firewall rule '${name}' is already present.`, "t-ok"]];
+        rules.push({ name: String(name), direction: d === "inbound" ? "Inbound" : "Outbound", action: a === "allow" ? "Allow" : "Block", enabled: "Enabled" });
+        T.store.save();
+        return [[`✔ Firewall rule '${name}' created.`, "t-ok"]];
+      },
+      "enable-netfirewallrule"(p) {
+        const name = p.named.displayname || p.positional[0];
+        if (!name) return [["Usage: Enable-NetFirewallRule -DisplayName <name>", "t-err"]];
+        const r = T.fwRules().find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!r) return [[`Enable-NetFirewallRule: rule '${name}' was not found.`, "t-err"]];
+        r.enabled = "Enabled"; T.store.save();
+        return [[`✔ Firewall rule '${r.name}' enabled.`, "t-ok"]];
+      },
+      "disable-netfirewallrule"(p) {
+        const name = p.named.displayname || p.positional[0];
+        if (!name) return [["Usage: Disable-NetFirewallRule -DisplayName <name>", "t-err"]];
+        const r = T.fwRules().find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!r) return [[`Disable-NetFirewallRule: rule '${name}' was not found.`, "t-err"]];
+        r.enabled = "Disabled"; T.store.save();
+        return [[`✔ Firewall rule '${r.name}' disabled.`, "t-ok"]];
+      },
+
+      /* ----- storage: stateful (v1.8.0) ----- */
+      "initialize-disk"(p) {
+        const num = String(p.named.number || p.positional[0] || "");
+        const style = String(p.named.partitionstyle || "GPT");
+        const disk = T.disks().find(d => d.number === num);
+        if (!disk) return [[`Initialize-Disk: disk ${num || "(none)"} was not found.`, "t-err"]];
+        if (disk.style !== "RAW") return [`Disk ${num} is already initialized (${disk.style}).`];
+        const st = style.toLowerCase();
+        if (st !== "gpt" && st !== "mbr") return [[`Initialize-Disk: '${style}' is not a valid PartitionStyle. Valid values: GPT, MBR.`, "t-err"]];
+        disk.style = st === "gpt" ? "GPT" : "MBR";
+        disk.status = "Online";
+        T.store.save();
+        return [[`✔ Disk ${num} initialized as ${disk.style} and moved Online.`, "t-ok"]];
+      },
+      "new-partition"(p) {
+        const num = String(p.named.disknumber || p.positional[0] || "");
+        const letter = String(p.named.driveletter || "").replace(/[:]/g, "").toUpperCase();
+        if (!num || !letter) return [["Usage: New-Partition -DiskNumber <n> -UseMaximumSize -DriveLetter <letter>", "t-err"]];
+        const disk = T.disks().find(d => d.number === num);
+        if (!disk) return [[`New-Partition: disk ${num} was not found.`, "t-err"]];
+        if (disk.style === "RAW") return [[`New-Partition: disk ${num} is not initialized. Run Initialize-Disk first.`, "t-err"]];
+        const vols = T.volumes();
+        if (vols.some(v => v.letter.toUpperCase() === letter))
+          return [[`New-Partition: drive letter '${letter}' is already in use.`, "t-err"]];
+        vols.push({ letter, label: "New Volume", fs: "RAW", size: disk.size, remaining: disk.size + " free" });
+        T.store.save();
+        return [[`✔ Partition created on disk ${num} as drive ${letter}:.`, "t-ok"]];
+      },
+      "format-volume"(p) {
+        const letter = String(p.named.driveletter || p.positional[0] || "").replace(/[:]/g, "").toUpperCase();
+        const fs = p.named.filesystem || "NTFS";
+        if (!letter) return [["Usage: Format-Volume -DriveLetter <letter> -FileSystem <fs>", "t-err"]];
+        const v = T.volumes().find(x => x.letter.toUpperCase() === letter);
+        if (!v) return [[`Format-Volume: volume '${letter}:' was not found. Create a partition first.`, "t-err"]];
+        v.fs = String(fs).toUpperCase();
+        T.store.save();
+        return [[`✔ Volume ${letter}: formatted as ${v.fs}.`, "t-ok"]];
+      },
+
+      /* ----- shares w files (v1.8.0) ----- */
+      "new-item"(p) {
+        const path = p.named.path || p.positional[0];
+        const type = p.named.itemtype || "Directory";
+        if (!path) return [["Usage: New-Item -Path <path> -ItemType <Directory|File>", "t-err"]];
+        const items = T.store.data.items || (T.store.data.items = []);
+        if (items.some(i => String(i.path).toLowerCase() === String(path).toLowerCase()))
+          return [[`New-Item: '${path}' already exists.`, "t-err"]];
+        items.push({ path: String(path), type: String(type) });
+        T.store.save();
+        const kind = String(type).toLowerCase() === "file" ? "File" : "Directory";
+        return [[`✔ ${kind} '${path}' created.`, "t-ok"]];
+      },
+      "new-smbshare"(p) {
+        const name = p.named.name || p.positional[0], path = p.named.path;
+        if (!name || !path) return [["Usage: New-SmbShare -Name <name> -Path <folder>", "t-err"]];
+        const shares = T.shares();
+        if (shares.some(s => s.name.toLowerCase() === String(name).toLowerCase()))
+          return [[`New-SmbShare: a share with the name '${name}' already exists.`, "t-err"]];
+        shares.push({ name: String(name), path: String(path), description: "" });
+        T.store.save();
+        return [[`✔ Share \\\\${T.store.data.hostname || "WINSRV-CORE"}\\${name} created.`, "t-ok"]];
+      },
+      "get-smbshare"(p) {
+        const name = p.named.name || p.positional[0];
+        const shares = T.shares();
+        if (name) {
+          const s = shares.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+          if (!s) return [[`Get-SmbShare: share '${name}' was not found.`, "t-err"]];
+          return ["Name        : " + s.name, "Path        : " + s.path, "Description : " + (s.description || "(none)")];
+        }
+        const out = [pad("Name", 12) + pad("Path", 16) + "Description",
+                     pad("", 12, "-") + " " + pad("", 14, "-") + " -----------"];
+        shares.forEach(s => out.push(pad(s.name, 12) + pad(s.path, 16) + (s.description || "")));
+        return out;
+      },
+      "grant-smbshareaccess"(p) {
+        const name = p.named.name, account = p.named.accountname, right = p.named.accessright;
+        if (!name || !account || !right) return [["Usage: Grant-SmbShareAccess -Name <share> -AccountName <account> -AccessRight <Full|Change|Read>", "t-err"]];
+        const s = T.shares().find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!s) return [[`Grant-SmbShareAccess: share '${name}' was not found.`, "t-err"]];
+        const r = String(right).toLowerCase();
+        if (!["full", "change", "read"].includes(r))
+          return [[`Grant-SmbShareAccess: '${right}' is not a valid AccessRight. Valid values: Full, Change, Read.`, "t-err"]];
+        s.access = s.access || [];
+        s.access.push({ account: String(account), right: r.charAt(0).toUpperCase() + r.slice(1) });
+        T.store.save();
+        return [[`✔ Granted ${account} ${r.charAt(0).toUpperCase() + r.slice(1)} access to share '${s.name}'.`, "t-ok"]];
+      },
+      "new-dfsnroot"(p) {
+        const path = p.named.path, target = p.named.targetpath;
+        if (!path || !target) return [["Usage: New-DfsnRoot -Path <namespace> -TargetPath <target>", "t-err"]];
+        const roots = T.store.data.dfsRoots || (T.store.data.dfsRoots = []);
+        if (roots.some(r => String(r.path).toLowerCase() === String(path).toLowerCase()))
+          return [[`New-DfsnRoot: a DFS namespace '${path}' already exists.`, "t-err"]];
+        roots.push({ path: String(path), targetPath: String(target) });
+        T.store.save();
+        return [[`✔ DFS namespace '${path}' created with target '${target}'.`, "t-ok"]];
+      },
+
+      /* ----- AD: move/object/policy (v1.8.0) ----- */
+      "move-adobject"(p) {
+        const id = p.named.identity || p.positional[0];
+        const target = p.named.targetpath;
+        if (!id || !target) return [["Usage: Move-ADObject -Identity <object> -TargetPath <OU-DN>", "t-err"]];
+        const found = T.findADObject(id);
+        if (!found) return [[`Move-ADObject: Cannot find an object with identity: '${id}'.`, "t-err"]];
+        const ouName = T.ouFromDN(target);
+        if (!ouName) return [[`Move-ADObject: TargetPath '${target}' does not name an OU.`, "t-err"]];
+        const ad = T.store.data.ad;
+        const ou = ad.containers.find(c => c.name.toLowerCase() === ouName.toLowerCase());
+        if (!ou) return [[`Move-ADObject: OU '${ouName}' was not found.`, "t-err"]];
+        found.obj.container = ou.name;
+        T.store.save();
+        return [[`✔ Object '${found.obj.name}' moved to '${ou.name}'.`, "t-ok"]];
+      },
+      "get-adobject"(p) {
+        const ad = T.store.data.ad;
+        const id = p.named.identity || p.positional[0];
+        const typeOf = o => o.kind;
+        /* suffix DC 7asab domain li kayn daba (b7al adDomainSuffix f app.js) */
+        const dom = (T.store.data.domain && T.store.data.domain !== "WORKGROUP") ? T.store.data.domain : (ad.domain || "lab.local");
+        const dc = String(dom).split(".").filter(Boolean).map(x => "DC=" + x).join(",");
+        const dnOf = o => {
+          const cont = (ad.containers || []).find(c => c.name === o.obj.container);
+          const pre = cont && cont.type === "ou" ? "OU" : "CN";
+          return `CN=${o.obj.name},${pre}=${o.obj.container},${dc}`;
+        };
+        if (id) {
+          const found = T.findADObject(id);
+          if (!found) return [[`Get-ADObject: Cannot find an object with identity: '${id}'.`, "t-err"]];
+          return ["DistinguishedName : " + dnOf(found),
+            "Name              : " + found.obj.name,
+            "ObjectClass       : " + found.kind];
+        }
+        let rows = [];
+        ad.users.forEach(u => rows.push({ obj: u, kind: "user" }));
+        ad.computers.forEach(c => rows.push({ obj: c, kind: "computer" }));
+        ad.groups.forEach(g => rows.push({ obj: g, kind: "group" }));
+        ad.containers.forEach(c => rows.push({ obj: { name: c.name, container: "" }, kind: c.type === "ou" ? "organizationalUnit" : "container" }));
+        const sb = p.named.searchbase;
+        if (sb) {
+          const ouName = T.ouFromDN(sb);
+          if (ouName) rows = rows.filter(r => (r.obj.container && r.obj.container.toLowerCase() === ouName.toLowerCase()) || r.obj.name.toLowerCase() === ouName.toLowerCase());
+        }
+        if (p.named.filter !== undefined && p.named.filter !== true && String(p.named.filter).trim() !== "*")
+          return [[`Get-ADObject: only -Filter * is supported in the simulator.`, "t-err"]];
+        if (!rows.length) return ["(no objects found)"];
+        const out = [pad("Name", 18) + pad("ObjectClass", 20) + "DistinguishedName",
+                     pad("", 18, "-") + " " + pad("", 18, "-") + " -----------------"];
+        rows.forEach(r => {
+          const dn = r.kind === "organizationalUnit" || r.kind === "container"
+            ? ((r.kind === "organizationalUnit" ? "OU=" : "CN=") + r.obj.name + "," + dc)
+            : dnOf(r);
+          out.push(pad(r.obj.name, 18) + pad(r.kind, 20) + dn);
+        });
+        return out;
+      },
+      "get-addefaultdomainpasswordpolicy"(p) {
+        const rows = SAMPLE.passwordPolicy;
+        const get = k => (rows.find(r => r[0] === k) || [])[1] || "";
+        return ["ComplexityEnabled           : " + (get("Complexity requirements") === "Enabled" ? "True" : "False"),
+          "LockoutDuration             : 00:30:00",
+          "LockoutObservationWindow    : 00:30:00",
+          "LockoutThreshold            : " + get("Account lockout threshold"),
+          "MaxPasswordAge              : " + get("Maximum password age"),
+          "MinPasswordAge              : 1.00:00:00",
+          "MinPasswordLength           : " + get("Minimum password length"),
+          "PasswordHistoryCount        : 24",
+          "ReversibleEncryptionEnabled : False"];
+      },
+
+      /* ----- remoting (v1.8.0) ----- */
+      "enable-psremoting"() {
+        T.store.data.psRemoting = true;
+        T.store.save();
+        return ["WinRM is set up to receive requests on this computer. (simulated)",
+          [`✔ PS Remoting enabled.`, "t-ok"]];
+      },
+      "enter-pssession"(p) {
+        const cn = p.named.computername || p.positional[0];
+        if (!cn) return [["Usage: Enter-PSSession -ComputerName <computer>", "t-err"]];
+        return [`Connected to ${cn} via WinRM. (simulated — commands still run locally on this server.)`,
+          `[${cn}]: PS C:\\Users\\Administrator>`];
+      },
+
+      /* ----- outils .exe: nslookup / ping / dsadd / redirusr / netdom / netsh (v1.8.0) ----- */
+      "nslookup"(p) {
+        const name = (p.positional[0] || "").toLowerCase();
+        if (!name) return [["Usage: nslookup <name>", "t-err"]];
+        const recs = T.dnsRecords();
+        const hit = recs.find(r => (r.name + "." + r.zone).toLowerCase() === name || r.name.toLowerCase() === name);
+        if (!hit) return [[`*** 127.0.0.1 can't find ${p.positional[0]}: Non-existent domain`, "t-err"]];
+        return ["Server:  127.0.0.1", "Address:  127.0.0.1", "",
+          "Name:    " + hit.name + "." + hit.zone, "Address:  " + hit.data];
+      },
+      "ping"(p) {
+        const target = p.positional[0];
+        if (!target) return [["Usage: ping <target>", "t-err"]];
+        const out = [`Pinging ${target} with 32 bytes of data:`];
+        for (let i = 0; i < 4; i++) out.push(`Reply from ${target}: bytes=32 time<1ms TTL=128`);
+        out.push("", `Ping statistics for ${target}:`,
+          "    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),",
+          "Approximate round trip times in milli-seconds:",
+          "    Minimum = 0ms, Maximum = 1ms, Average = 0ms");
+        return out;
+      },
+      "dsadd"(p) {
+        const kind = (p.positional[0] || "").toLowerCase();
+        const dn = p.positional[1] || "";
+        if (!kind || !dn) return [["Usage: dsadd <user|computer|ou|group> \"<DN>\"", "t-err"]];
+        const ad = T.store.data.ad;
+        const cn = /CN=([^,;]+)/i.exec(dn);
+        const ouName = T.ouFromDN(dn);
+        const name = cn ? cn[1] : (kind === "ou" ? (ouName || "") : "");
+        if (!name) return [[`dsadd: could not read a name from '${dn}'.`, "t-err"]];
+        if (kind === "ou") {
+          if (ad.containers.some(c => c.name.toLowerCase() === name.toLowerCase()))
+            return [[`dsadd: An object with the name '${name}' already exists.`, "t-err"]];
+          ad.containers.push({ name, type: "ou" });
+          T.store.save();
+          return [[`✔ Organizational unit '${name}' created.`, "t-ok"]];
+        }
+        let container = kind === "computer" ? "Computers" : "Users";
+        if (ouName) {
+          const ou = ad.containers.find(c => c.name.toLowerCase() === ouName.toLowerCase());
+          if (!ou) return [[`dsadd: OU '${ouName}' was not found.`, "t-err"]];
+          container = ou.name;
+        }
+        if (kind === "user") {
+          if (ad.users.some(x => x.name.toLowerCase() === name.toLowerCase()))
+            return [[`dsadd: An object with the name '${name}' already exists.`, "t-err"]];
+          ad.users.push({ name, container, enabled: true, groups: [] });
+          T.store.save();
+          return [[`✔ User '${name}' created in ${container}.`, "t-ok"]];
+        }
+        if (kind === "computer") {
+          if (ad.computers.some(x => x.name.toLowerCase() === name.toLowerCase()))
+            return [[`dsadd: An object with the name '${name}' already exists.`, "t-err"]];
+          ad.computers.push({ name, container });
+          T.store.save();
+          return [[`✔ Computer '${name}' created in ${container}.`, "t-ok"]];
+        }
+        if (kind === "group") {
+          if (ad.groups.some(x => x.name.toLowerCase() === name.toLowerCase()))
+            return [[`dsadd: An object with the name '${name}' already exists.`, "t-err"]];
+          ad.groups.push({ name, scope: "Global", category: "Security", container, members: [] });
+          T.store.save();
+          return [[`✔ Group '${name}' (Global) created in ${container}.`, "t-ok"]];
+        }
+        return [[`dsadd: unknown object type '${kind}'. Use user, computer, ou or group.`, "t-err"]];
+      },
+      "dsmod"(p) {
+        const kind = (p.positional[0] || "").toLowerCase();
+        const dn = p.positional[1] || "";
+        if (kind !== "user" || !dn) return [["Usage: dsmod user <dn> [-disabled <yes|no>]", "t-err"]];
+        const ad = T.store.data.ad;
+        const cn = /CN=([^,;]+)/i.exec(dn);
+        const name = cn ? cn[1] : dn;
+        const u = ad.users.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+        if (!u) return [[`dsmod: Cannot find an object with identity: '${name}'.`, "t-err"]];
+        if (p.named.disabled === undefined) return [["Usage: dsmod user <dn> -disabled <yes|no>", "t-err"]];
+        const dis = String(p.named.disabled).toLowerCase();
+        if (dis !== "yes" && dis !== "no") return [[`dsmod: '-disabled' must be yes or no.`, "t-err"]];
+        u.enabled = dis === "no";
+        T.store.save();
+        return [[`✔ User '${u.name}' ${u.enabled ? "enabled" : "disabled"}.`, "t-ok"]];
+      },
+      "dsrm"(p) {
+        const dn = p.positional[0] || "";
+        if (!dn) return [["Usage: dsrm <dn>", "t-err"]];
+        const ad = T.store.data.ad;
+        const found = T.findADObject(dn);
+        if (found) {
+          if (found.kind === "user") {
+            ad.users = ad.users.filter(x => x !== found.obj);
+            ad.groups.forEach(g => { g.members = g.members.filter(m => m.toLowerCase() !== found.obj.name.toLowerCase()); });
+          } else if (found.kind === "computer") {
+            ad.computers = ad.computers.filter(x => x !== found.obj);
+          } else {
+            ad.groups = ad.groups.filter(x => x !== found.obj);
+            ad.users.forEach(u => { u.groups = u.groups.filter(g => g.toLowerCase() !== found.obj.name.toLowerCase()); });
+          }
+          T.store.save();
+          return [[`✔ Object '${found.obj.name}' deleted.`, "t-ok"]];
+        }
+        // OU (wla container) — ghir ila DN bla CN= (CN= kay3ni object ldakhel OU)
+        const hasCN = /CN=/i.test(dn);
+        const ouName = !hasCN ? T.ouFromDN(dn) : null;
+        if (ouName) {
+          const c = ad.containers.find(x => x.name.toLowerCase() === ouName.toLowerCase());
+          if (!c) return [[`dsrm: Cannot find an object with identity: '${dn}'.`, "t-err"]];
+          if (c.type !== "ou") return [[`dsrm: container '${c.name}' cannot be removed.`, "t-err"]];
+          const hasKids = ad.users.some(u => u.container === c.name) || ad.computers.some(x => x.container === c.name) || ad.groups.some(g => g.container === c.name);
+          if (hasKids) return [[`dsrm: OU '${c.name}' is not empty.`, "t-err"]];
+          ad.containers = ad.containers.filter(x => x !== c);
+          T.store.save();
+          return [[`✔ Organizational unit '${c.name}' deleted.`, "t-ok"]];
+        }
+        return [[`dsrm: Cannot find an object with identity: '${dn}'.`, "t-err"]];
+      },
+      "redirusr"(p) {
+        const dn = p.positional[0];
+        if (!dn) return [["Usage: redirusr \"<OU-DN>\"", "t-err"]];
+        T.store.data.ad.defaultUserContainer = String(dn);
+        T.store.save();
+        return [[`✔ Default users container redirected to '${dn}'.`, "t-ok"]];
+      },
+      "rediruser"(p) {
+        return T.handlers["redirusr"].call(T, p);
+      },
+      "netdom"(p) {
+        const sub = (p.positional[0] || "").toLowerCase();
+        const ad = T.store.data.ad;
+        if (sub === "query") {
+          const what = (p.positional[1] || "").toLowerCase();
+          if (what === "fsmo") {
+            return ["Schema master               " + ad.dc,
+              "Domain naming master        " + ad.dc,
+              "PDC                         " + ad.dc,
+              "RID pool manager            " + ad.dc,
+              "Infrastructure master       " + ad.dc,
+              "The command completed successfully."];
+          }
+          if (what === "dc") {
+            return ["List of domain controllers:", "    " + ad.dc, "The command completed successfully."];
+          }
+          return [[`netdom query: unknown query '${p.positional[1] || ""}'. Use 'query fsmo' or 'query dc'.`, "t-err"]];
+        }
+        if (sub === "join") {
+          const domTok = p.positional.find(t => /^\/domain:/i.test(t));
+          const dom = domTok ? domTok.split(":")[1] : "";
+          if (!dom) return [["Usage: netdom join <computer> /domain:<domain> /UserD:<user> /passwordD:*", "t-err"]];
+          if (!T.store.data.domain || T.store.data.domain === "WORKGROUP")
+            return [[`netdom: the domain '${dom}' cannot be contacted. No forest exists yet — run 'Install-ADDSForest -DomainName ${dom}' first.`, "t-err"]];
+          T.store.data.domain = dom;
+          T.store.save();
+          return [`The computer ${p.positional[1] || ad.dc.split(".")[0]} joined domain ${dom} successfully. A restart is required. (simulated)`];
+        }
+        if (sub === "renamecomputer") {
+          const nn = p.positional.find(t => /^\/newname:/i.test(t));
+          const n = nn ? nn.split(":")[1] : "";
+          if (!n) return [["Usage: netdom renamecomputer <computer> /NewName:<name>", "t-err"]];
+          if (n.length > 15) return [[`netdom: '${n}' is longer than 15 characters.`, "t-err"]];
+          T.store.data.hostname = n;
+          T.store.save();
+          return [`The computer was renamed to '${n}'. A restart is required. (simulated)`];
+        }
+        return [["Usage: netdom <query fsmo|query dc|join|renamecomputer>", "t-err"]];
+      },
+      "netsh"(p) {
+        const toks = p.positional.map(t => String(t).toLowerCase());
+        if (toks[0] === "interface" && (toks[1] === "ipv4" || toks[1] === "ip")) {
+          if (toks[2] === "set" && toks[3] === "address") {
+            const iface = p.positional[4] || "Ethernet";
+            if (toks[5] !== "static") return [["Usage: netsh interface ipv4 set address \"<iface>\" static <ip> <mask> [gateway]", "t-err"]];
+            const ip = p.positional[6], mask = p.positional[7], gw = p.positional[8];
+            if (ipToInt(ip) === null) return [[`netsh: '${ip}' is not a valid IPv4 address.`, "t-err"]];
+            const plen = maskToPrefix(mask);
+            if (plen === null) return [[`netsh: '${mask}' is not a valid subnet mask.`, "t-err"]];
+            T.store.data.ipAddress = ip;
+            T.store.data.prefixLength = String(plen);
+            if (gw) T.store.data.gateway = gw;
+            T.store.save();
+            return [[`✔ IP address ${ip}/${plen} assigned to adapter '${iface}'. (simulated)`, "t-ok"]];
+          }
+          if (toks[2] === "show" && toks[3] === "config") {
+            const d = T.store.data;
+            const ip = d.ipAddress || "192.168.10.10";
+            const plen = parseInt(d.prefixLength || "24", 10) || 24;
+            const m = (0xFFFFFFFF << (32 - plen)) >>> 0;
+            const mask = [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join(".");
+            return ["Configuration for interface \"Ethernet\"",
+              "    DHCP enabled:                         No",
+              "    IP Address:                           " + ip,
+              "    Subnet Prefix:                        " + ip + "/" + plen + " (mask " + mask + ")",
+              "    Default Gateway:                      " + (d.gateway || "192.168.10.1"),
+              "    DNS servers configured through DHCP:  No",
+              "    Preferred DNS server:                 " + (d.dnsServer || "127.0.0.1")];
+          }
+          return [["Usage: netsh interface ipv4 <set address|show config>", "t-err"]];
+        }
+        if (toks[0] === "advfirewall" && toks[1] === "show" && toks[2] === "allprofiles") {
+          const rules = T.fwRules().length;
+          return ["Domain Profile Settings:", "    State                                 ON",
+            "Private Profile Settings:", "    State                                 ON",
+            "Public Profile Settings:", "    State                                 ON",
+            "", `(${rules} firewall rule(s) configured — see Get-NetFirewallRule)`];
+        }
+        return [["Usage: netsh <interface ipv4 set address|interface ip show config|advfirewall show allprofiles>", "t-err"]];
       },
       "dcdiag"() {
         const ad = T.store.data.ad;
@@ -983,10 +1838,89 @@ class SimTerminal {
   }
 
   /* ---------- helpers ---------- */
+  /* lazy-init dyal stores jdad (v1.8.0): les stores 9dam ma fihomch had fields,
+     donc || fallback bach l'upgrade ma ykessrch l'etat l9dim */
+  dnsZones() {
+    const d = this.store.data;
+    if (!d.dnsZones) d.dnsZones = [{ name: "lab.local", type: "Primary" }];
+    return d.dnsZones;
+  }
+  dnsRecords() {
+    const d = this.store.data;
+    if (!d.dnsRecords) d.dnsRecords = [{ zone: "lab.local", name: "dc01", type: "A", data: "192.168.10.10" }, { zone: "lab.local", name: "srv1", type: "A", data: "192.168.1.10" }];
+    return d.dnsRecords;
+  }
+  gpos() {
+    const d = this.store.data;
+    if (!d.gpos) d.gpos = [];
+    return d.gpos;
+  }
+  fwRules() {
+    const d = this.store.data;
+    if (!d.firewallRules) d.firewallRules = SAMPLE.firewall.map(f => ({ name: f[0], direction: f[1], action: f[2], enabled: f[3] }));
+    return d.firewallRules;
+  }
+  disks() {
+    const d = this.store.data;
+    if (!d.disks) d.disks = SAMPLE.disks.map(x => ({ number: x[0], name: x[1], size: x[2], style: x[3], status: x[4] }));
+    return d.disks;
+  }
+  volumes() {
+    const d = this.store.data;
+    if (!d.volumes) d.volumes = SAMPLE.volumes.map(v => ({ letter: v[0], label: v[1], fs: v[2], size: v[3], remaining: v[4] }));
+    return d.volumes;
+  }
+  shares() {
+    const d = this.store.data;
+    if (!d.shares) d.shares = SAMPLE.shares.map(s => ({ name: s[0], path: s[1], description: s[2] || "" }));
+    return d.shares;
+  }
+  routes() {
+    const d = this.store.data;
+    if (!d.routes) d.routes = [
+      { dest: "192.168.10.0/24", nextHop: "0.0.0.0", iface: "Ethernet" },
+      { dest: "0.0.0.0/0", nextHop: d.gateway || "192.168.10.1", iface: "Ethernet" },
+      /* route statique dyal lab (M201): bach l'exemple dyal Remove-NetRoute ykhdem */
+      { dest: "192.168.2.0/24", nextHop: "192.168.10.1", iface: "Ethernet" },
+    ];
+    return d.routes;
+  }
+  /* l9a object AD (user/computer/group) b smiya wla DN */
+  findADObject(id) {
+    const ad = this.store.data.ad;
+    let name = String(id || "");
+    const cn = /CN=([^,;]+)/i.exec(name);
+    if (cn) name = cn[1];
+    name = name.replace(/['"]/g, "").trim();
+    const low = name.toLowerCase();
+    const u = ad.users.find(x => x.name.toLowerCase() === low);
+    if (u) return { obj: u, kind: "user" };
+    const c = ad.computers.find(x => x.name.toLowerCase() === low);
+    if (c) return { obj: c, kind: "computer" };
+    const g = ad.groups.find(x => x.name.toLowerCase() === low);
+    if (g) return { obj: g, kind: "group" };
+    return null;
+  }
+  /* OU name men DN: "OU=IT,DC=lab,DC=local" -> "IT" */
+  ouFromDN(dn) {
+    const m = /OU=([^,;]+)/i.exec(String(dn || ""));
+    return m ? m[1] : null;
+  }
   findScope(id) {
     if (id === undefined || id === null) return null;
-    const n = parseInt(id, 10);
-    return this.store.data.scopes.find(s => s.id === n) || null;
+    const s = String(id);
+    if (s.includes(".")) {
+      // network address (192.168.10.0): match scope li start dyalha f nafs network,
+      // sinon 3rd octet (10) b7al l'id l9dim
+      const net = s.split(".").slice(0, 3).join(".");
+      const byNet = this.store.data.scopes.find(sc => String(sc.start).split(".").slice(0, 3).join(".") === net);
+      if (byNet) return byNet;
+      const third = parseInt(s.split(".")[2], 10);
+      if (!isNaN(third)) return this.store.data.scopes.find(sc => sc.id === third) || null;
+      return null;
+    }
+    const n = parseInt(s, 10);
+    return this.store.data.scopes.find(sc => sc.id === n) || null;
   }
 
   setServiceState(p, state) {

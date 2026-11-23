@@ -6,6 +6,7 @@ your browser, with zero backend and zero risk.
 
 Created by **medyas** · © 2026 medyas. All rights reserved.
 
+> **Update 23/11/2026 (v1.8.0)** — Fixed the -Path, -Filter and -ScopeId rejections on the AD/DHCP cmdlets, added the missing cmdlets (Move-ADObject, routing, DNS records, DHCP read/remove, remoting, gpresult, nslookup, ping, netsh and more), and made DNS, GPO, firewall and storage commands actually change the lab state.
 > **Update 23/11/2026 (v1.7.9)** — Added ipconfig and ipconfig /all, like the real ipconfig.exe.
 > **Update 23/11/2026 (v1.7.8)** — Fixed New-ADUser and New-ADComputer -Path being rejected; -Name and -ExecutionPolicy named forms now accepted.
 > **Update 10/11/2026 (v1.7.7)** — Completed exercises show green; quiz modules start unchecked, you pick them yourself.
@@ -97,7 +98,7 @@ python3 -m http.server 8080
    ```bash
    git init
    git add .
-   git commit -m "MEDC ServerCore Lab Training v1.1.0"
+   git commit -m "MEDC ServerCore Lab Training v1.8.0"
    git branch -M main
    git remote add origin https://github.com/USERNAME/servercore-lab.git
    git push -u origin main
@@ -115,7 +116,9 @@ servercore-lab/
 │   └── js/
 │       ├── data.js         # command catalog, exercises, sample data
 │       ├── terminal.js     # PowerShell simulator engine
-│       ├── quiz.js         # QCM quiz engine (96 questions, timer, leaderboard)
+│       ├── quiz.js         # QCM quiz engine (100 questions, timer, leaderboard)
+│       ├── defi.js         # Défi Commandes engine (54 missions, timer, streaks)
+│       ├── router.js       # Router Lab — simulated ZTE router (admin panel, diagnostics, 3D)
 │       └── app.js          # hash router + page renderers + store
 ├── README.md
 ├── LICENSE

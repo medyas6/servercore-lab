@@ -6,6 +6,9 @@
 /* ---------------- store li katb9a m7fouda ---------------- */
 const STORE_KEY = "servercore-lab-v1";
 
+/* version wa7da — About kayst3melha, bach ma tb9ach 9dima */
+const SITE_VERSION = "1.8.0";
+
 function defaultState() {
   return {
     v: 1,
@@ -28,7 +31,7 @@ function defaultState() {
       domain: "lab.local",
       dc: "DC01.lab.local",
       site: "Default-First-Site-Name",
-      functionalLevel: "Windows Server 2016",
+      functionalLevel: "Windows Server 2019",
       containers: [
         { name: "Domain Controllers", type: "ou" },
         { name: "Users", type: "container" },
@@ -36,10 +39,14 @@ function defaultState() {
         { name: "IT", type: "ou" },
         { name: "HR", type: "ou" },
         { name: "Students", type: "ou" },
+        /* Défi #38 (EFM) kay7taj had l'OU bach New-ADUser -Path "OU=Informatique,..." ykhdem */
+        { name: "Informatique", type: "ou" },
       ],
       users: [
         { name: "Administrator", container: "Users", enabled: true, groups: ["Domain Admins"] },
         { name: "student01", container: "IT", enabled: true, groups: ["LabAdmins"] },
+        /* bach l'exemple dyal Move-ADObject ykhdem 3la fresh store (Informatique deja kayna) */
+        { name: "InfoUser1", container: "Users", enabled: true, groups: [] },
       ],
       computers: [
         { name: "DC01", container: "Domain Controllers" },
@@ -505,11 +512,21 @@ route("#/dns", () => `
   ${cmdCard("Resolve-DnsName -Name DC01.lab.local", "Test name resolution against the simulated DNS.")}`);
 
 /* ---------------- Active Directory: ADUC tree b7al console l7a9i9iya ---------------- */
+/* suffix DC=... 7asab domain li kayn daba: Install-ADDSForest kat7et domain
+   f store.data.domain (terminal.js) o ad.domain ma katbdelch, donc kan9raw
+   men store.data.domain lowel; WORKGROUP = mazal ma tcreat walou */
+function adDomainSuffix(ad) {
+  const d = (typeof store !== "undefined" && store.data && store.data.domain && store.data.domain !== "WORKGROUP")
+    ? store.data.domain
+    : (ad && ad.domain) || "lab.local";
+  return String(d).split(".").filter(Boolean).map(p => "DC=" + p).join(",");
+}
+
 /* katbni DistinguishedName dyal object 7asab container li fih */
 function adDN(obj, ad) {
   const cont = (ad.containers || []).find(c => c.name === obj.container);
   const pre = cont && cont.type === "ou" ? "OU" : "CN";
-  return `CN=${obj.name},${pre}=${obj.container},DC=lab,DC=local`;
+  return `CN=${obj.name},${pre}=${obj.container},${adDomainSuffix(ad)}`;
 }
 
 /* 7ala dyal chajara (chno m7loul / chno mselectionné) — ghir dyal session */
@@ -550,7 +567,7 @@ function aducDetails(id, ad) {
     const objs = [...ad.users.filter(u => u.container === name), ...ad.computers.filter(o => o.container === name), ...ad.groups.filter(g => g.container === name)];
     return head((cont.type === "ou" ? "Organizational Unit — " : "Container — ") + name) + kvTable([
       ["Type", cont.type === "ou" ? "Organizational Unit" : "Container"],
-      ["Distinguished name", (cont.type === "ou" ? "OU=" : "CN=") + name + ",DC=lab,DC=local"],
+      ["Distinguished name", (cont.type === "ou" ? "OU=" : "CN=") + name + "," + adDomainSuffix(ad)],
       ["Objects inside", objs.length ? objs.map(o => o.name).join(", ") : "(empty)"],
     ]);
   }
@@ -920,8 +937,8 @@ route("#/about", () => `
   ${pageHead("About & License", "What this project is and how you may use it.")}
   <div class="card"><h2>MEDC ServerCore Lab Training</h2>
     ${kvTable([
-      ["Version", "1.1.0"],
-      ["Released", "2026-10-09"],
+      ["Version", SITE_VERSION],
+      ["Released", "2026-11-23"],
       ["Created by", "medyas"],
       ["First published", "October 2026"],
       ["Original repository", "github.com/medyas6/servercore-lab"],
@@ -942,6 +959,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.8.0</span><span class="date">2026-11-23</span> — Fixed the -Path, -Filter and -ScopeId rejections on the AD/DHCP cmdlets (plus the DHCP gateway shown by ipconfig), added the missing cmdlets — Move-ADObject, routing (Get/New/Remove-NetRoute), DNS records, DHCP read/remove, remoting, gpresult, nslookup, ping, netsh and more — and made DNS, GPO, firewall and storage commands actually change the lab state instead of just printing success.</li>
       <li><span class="ver">v1.7.9</span><span class="date">2026-11-23</span> — Added ipconfig (and ipconfig /all): shows the simulated adapter's IP configuration like the real ipconfig.exe — IPv4 address, subnet mask, gateway, and with /all the MAC address and DNS server.</li>
       <li><span class="ver">v1.7.8</span><span class="date">2026-11-23</span> — Fixed -Path being rejected on New-ADUser and New-ADComputer: creating a user or computer directly in an OU works now (New-ADUser -Name "InfoUser1" -Path "OU=Informatique,DC=lab,DC=local" -Enabled $true). Also: -Name on Install/Uninstall-WindowsFeature and -ExecutionPolicy on Set-ExecutionPolicy are accepted as named parameters.</li>
       <li><span class="ver">v1.7.7</span><span class="date">2026-11-10</span> — A completed exercise now shows green (badge ✓ and checkbox) so it stands out clearly. Quiz modules start unchecked — you pick them yourself; starting with none selected shows "Sélectionne au moins un module."</li>
