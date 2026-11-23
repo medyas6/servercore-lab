@@ -618,6 +618,26 @@ class SimTerminal {
                 pad("", 16, "-") + " " + pad("", 15, "-") + " ------------",
                 pad("Ethernet", 16) + pad(ip, 17) + plen];
       },
+      "ipconfig"(p) {
+        const d = T.store.data;
+        const ip = d.ipAddress || "192.168.10.10";
+        const plen = parseInt(d.prefixLength || "24", 10) || 24;
+        const m = (0xFFFFFFFF << (32 - plen)) >>> 0;
+        const mask = [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join(".");
+        const gw = d.defaultGateway || "192.168.10.1";
+        const dns = d.dnsServer || "127.0.0.1";
+        const sw = (p.positional[0] || "").toLowerCase();
+        if (sw && sw !== "/all") return [[`ipconfig: unknown switch '${p.positional[0]}'. Usage: ipconfig [/all]`, "t-err"]];
+        const all = sw === "/all";
+        const out = ["Windows IP Configuration", "", "Ethernet adapter Ethernet:", "",
+          "   Connection-specific DNS Suffix  . : lab.local"];
+        if (all) out.push("   Physical Address. . . . . . . . . : 00-15-5D-01-02-0A", "   DHCP Enabled. . . . . . . . . . . : No");
+        out.push("   IPv4 Address. . . . . . . . . . . : " + ip,
+          "   Subnet Mask . . . . . . . . . . . : " + mask,
+          "   Default Gateway . . . . . . . . . : " + gw);
+        if (all) out.push("   DNS Servers . . . . . . . . . . . : " + dns);
+        return out;
+      },
       "set-dnsclientserveraddress"(p) {
         const s = p.named.serveraddresses || p.positional[0];
         if (ipToInt(s) === null) return [[`Set-DnsClientServerAddress: '${s}' is not valid.`, "t-err"]];

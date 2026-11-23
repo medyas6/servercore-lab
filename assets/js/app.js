@@ -942,6 +942,7 @@ route("#/about", () => `
   </div>
   <div class="card"><h2>Changelog</h2>
     <ul class="changelog">
+      <li><span class="ver">v1.7.9</span><span class="date">2026-11-23</span> — Added ipconfig (and ipconfig /all): shows the simulated adapter's IP configuration like the real ipconfig.exe — IPv4 address, subnet mask, gateway, and with /all the MAC address and DNS server.</li>
       <li><span class="ver">v1.7.8</span><span class="date">2026-11-23</span> — Fixed -Path being rejected on New-ADUser and New-ADComputer: creating a user or computer directly in an OU works now (New-ADUser -Name "InfoUser1" -Path "OU=Informatique,DC=lab,DC=local" -Enabled $true). Also: -Name on Install/Uninstall-WindowsFeature and -ExecutionPolicy on Set-ExecutionPolicy are accepted as named parameters.</li>
       <li><span class="ver">v1.7.7</span><span class="date">2026-11-10</span> — A completed exercise now shows green (badge ✓ and checkbox) so it stands out clearly. Quiz modules start unchecked — you pick them yourself; starting with none selected shows "Sélectionne au moins un module."</li>
       <li><span class="ver">v1.7.6</span><span class="date">2026-11-10</span> — Terminal input now pinned to the bottom of the pane from the first load (transcript scrolls above it), like real PowerShell. Also: "Did you mean" only suggests close matches (no more 'cls' for 'nnn'), banner version removed to avoid confusion, shorter input placeholder for phones.</li>
